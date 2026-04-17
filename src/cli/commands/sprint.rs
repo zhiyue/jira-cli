@@ -83,7 +83,12 @@ pub fn dispatch<W: Write>(
             writeln!(out, "{}", serde_json::json!({"ok": true, "data": v}))?;
             Ok(())
         }
-        SprintCmd::Delete { id } => {
+        SprintCmd::Delete { id, yes } => {
+            if !*yes {
+                return Err(crate::error::Error::Usage(
+                    "sprint delete requires --yes to confirm".into(),
+                ));
+            }
             agile::delete_sprint(client, *id)?;
             writeln!(out, "{}", serde_json::json!({"ok": true, "deleted": id}))?;
             Ok(())

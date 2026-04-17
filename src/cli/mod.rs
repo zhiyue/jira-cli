@@ -414,6 +414,9 @@ pub enum SprintCmd {
     },
     Delete {
         id: u64,
+        /// Required confirmation (safety gate)
+        #[arg(long)]
+        yes: bool,
     },
     Issues {
         id: u64,

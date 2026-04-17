@@ -2,7 +2,6 @@ use clap::Parser;
 use jira_cli::cli::{dispatch, Cli};
 use jira_cli::config::JiraConfig;
 use jira_cli::http::HttpClient;
-use std::io::Write;
 
 fn main() {
     let cli = Cli::parse();
@@ -17,6 +16,17 @@ fn main() {
 }
 
 fn try_main(cli: &Cli) -> jira_cli::Result<()> {
+    use std::io::Write;
+    let stdout = std::io::stdout();
+    let mut lock = stdout.lock();
+
+    // Schema command doesn't need config/client
+    if let jira_cli::cli::Command::Schema(a) = &cli.cmd {
+        jira_cli::cli::commands::schema::run(&mut lock, a, cli.global.pretty)?;
+        lock.flush()?;
+        return Ok(());
+    }
+
     let mut cfg = JiraConfig::from_env()?;
     if let Some(t) = cli.global.timeout {
         cfg.timeout_secs = t;
@@ -25,8 +35,6 @@ fn try_main(cli: &Cli) -> jira_cli::Result<()> {
         cfg.insecure = true;
     }
     let client = HttpClient::new(&cfg)?;
-    let stdout = std::io::stdout();
-    let mut lock = stdout.lock();
     dispatch::run(&mut lock, &cfg, &client, cli)?;
     lock.flush()?;
     Ok(())

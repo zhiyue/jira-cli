@@ -22,5 +22,6 @@ pub fn run<W: Write>(out: &mut W, cfg: &JiraConfig, client: &HttpClient, cli: &C
         Command::Epic(sub) => commands::epic::dispatch(out, client, &cli.global, sub),
         Command::Backlog(sub) => commands::backlog::dispatch(out, client, &cli.global, sub),
         Command::Session(SessionCmd::New) => commands::meta::session_new(out, cfg),
+        Command::Schema(a) => commands::schema::run(out, a, cli.global.pretty),
     }
 }

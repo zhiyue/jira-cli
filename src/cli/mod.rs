@@ -64,11 +64,19 @@ pub enum Command {
     /// stdin (line-delimited). Prints the cookie string to stdout.
     #[command(subcommand)]
     Session(SessionCmd),
+    /// Emit CLI capability discovery schema (self-describing)
+    Schema(SchemaArgs),
 }
 
 #[derive(Subcommand, Debug)]
 pub enum SessionCmd {
     New,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SchemaArgs {
+    /// Subcommand name; omit for full tree
+    pub subcommand: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]

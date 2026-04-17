@@ -38,6 +38,12 @@ pub enum Command {
     Field(FieldCmd),
     /// Run a JQL query (POST /rest/api/2/search); streams JSONL
     Search(SearchArgs),
+    /// Project operations
+    #[command(subcommand)]
+    Project(ProjectCmd),
+    /// User operations
+    #[command(subcommand)]
+    User(UserCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -271,4 +277,17 @@ pub enum WatchersCmd {
     List { key: String },
     Add { key: String, user: String },
     Remove { key: String, user: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ProjectCmd {
+    List,
+    Get { key: String },
+    Statuses { key: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum UserCmd {
+    Get { username: String },
+    Search { query: String },
 }

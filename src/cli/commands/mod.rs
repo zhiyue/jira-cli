@@ -7,6 +7,7 @@ pub mod link;
 pub mod meta;
 pub mod project;
 pub mod search;
+pub mod sprint;
 pub mod user;
 pub mod watchers;
 pub mod worklog;

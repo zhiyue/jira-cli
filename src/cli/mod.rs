@@ -47,6 +47,9 @@ pub enum Command {
     /// Agile: boards
     #[command(subcommand)]
     Board(BoardCmd),
+    /// Agile: sprints
+    #[command(subcommand)]
+    Sprint(SprintCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -309,5 +312,55 @@ pub enum BoardCmd {
     },
     Backlog {
         id: u64,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SprintCmd {
+    /// List sprints on a board (optionally filter state)
+    List {
+        #[arg(long)]
+        board: u64,
+        /// Comma-separated states: future, active, closed
+        #[arg(long)]
+        state: Option<String>,
+    },
+    Get {
+        id: u64,
+    },
+    Create {
+        #[arg(long)]
+        board: u64,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        start: Option<String>,
+        #[arg(long)]
+        end: Option<String>,
+        #[arg(long)]
+        goal: Option<String>,
+    },
+    Update {
+        id: u64,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        state: Option<String>,
+        #[arg(long)]
+        start: Option<String>,
+        #[arg(long)]
+        end: Option<String>,
+        #[arg(long)]
+        goal: Option<String>,
+    },
+    Delete {
+        id: u64,
+    },
+    Issues {
+        id: u64,
+    },
+    Move {
+        id: u64,
+        keys: Vec<String>,
     },
 }

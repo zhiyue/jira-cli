@@ -44,3 +44,45 @@ async fn board_backlog_streams() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn create_sprint() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("POST"))
+        .and(path("/rest/agile/1.0/sprint"))
+        .and(wiremock::matchers::body_partial_json(json!({
+            "name": "Sprint 42",
+            "originBoardId": 5
+        })))
+        .respond_with(
+            ResponseTemplate::new(201)
+                .set_body_json(json!({"id":100,"name":"Sprint 42","state":"future"})),
+        )
+        .mount(&server)
+        .await;
+
+    in_blocking(move || {
+        let v = agile::create_sprint(&client, 5, "Sprint 42", None, None, None).unwrap();
+        assert_eq!(v["id"], 100);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn move_issues_to_sprint_auto_batches_50() {
+    let (server, client) = spawn_mock_basic().await;
+    for _ in 0..3 {
+        Mock::given(method("POST"))
+            .and(path("/rest/agile/1.0/sprint/100/issue"))
+            .respond_with(ResponseTemplate::new(204))
+            .up_to_n_times(1)
+            .expect(1)
+            .mount(&server)
+            .await;
+    }
+    in_blocking(move || {
+        let keys: Vec<String> = (0..120).map(|i| format!("MGX-{}", i + 1)).collect();
+        agile::move_issues_to_sprint(&client, 100, &keys).unwrap();
+    })
+    .await;
+}

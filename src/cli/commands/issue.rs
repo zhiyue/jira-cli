@@ -36,6 +36,9 @@ pub fn dispatch<W: Write>(
         }
         IssueCmd::Transition(a) => transition(out, client, a),
         IssueCmd::Link(sub) => crate::cli::commands::link::dispatch(out, client, g, sub),
+        IssueCmd::Attachment(sub) => {
+            crate::cli::commands::attachment::dispatch(out, client, g, sub)
+        }
     }
 }
 

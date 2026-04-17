@@ -71,6 +71,9 @@ pub enum IssueCmd {
     /// Manage issue links
     #[command(subcommand)]
     Link(LinkCmd),
+    /// Issue attachments
+    #[command(subcommand)]
+    Attachment(AttachmentCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -213,4 +216,24 @@ pub enum LinkCmd {
     },
     /// Delete a link by id
     Delete { link_id: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AttachmentCmd {
+    /// List attachments on an issue
+    List { key: String },
+    /// Upload one or more files to an issue
+    Upload {
+        key: String,
+        paths: Vec<std::path::PathBuf>,
+    },
+    /// Download an attachment by id
+    Download {
+        attachment_id: String,
+        /// Output path (default: original filename; use `-` for stdout)
+        #[arg(long)]
+        out: Option<String>,
+    },
+    /// Delete an attachment by id
+    Delete { attachment_id: String },
 }

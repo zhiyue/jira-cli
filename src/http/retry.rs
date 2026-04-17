@@ -24,9 +24,11 @@ pub fn send(
     let mut attempt = 0usize;
     let retry_writes = client.retry_writes_enabled();
     loop {
-        let try_req = req
-            .try_clone()
-            .ok_or_else(|| Error::Config("request body is not cloneable; cannot retry".into()))?;
+        // Multipart (and other streaming) bodies are not cloneable; in that
+        // case we fall through to a single send with no retry capability.
+        let Some(try_req) = req.try_clone() else {
+            return req.send().map_err(Error::Network);
+        };
 
         let send_result = try_req.send();
 

@@ -53,6 +53,9 @@ pub enum Command {
     /// Agile: epics
     #[command(subcommand)]
     Epic(EpicCmd),
+    /// Agile: backlog
+    #[command(subcommand)]
+    Backlog(BacklogCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -324,6 +327,12 @@ pub enum EpicCmd {
     Issues { key: String },
     AddIssues { key: String, issues: Vec<String> },
     RemoveIssues { issues: Vec<String> },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum BacklogCmd {
+    /// Move issues to backlog (removes them from all future/active sprints)
+    Move { keys: Vec<String> },
 }
 
 #[derive(Subcommand, Debug)]

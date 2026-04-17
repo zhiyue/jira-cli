@@ -1,4 +1,5 @@
 pub mod attachment;
+pub mod backlog;
 pub mod board;
 pub mod comment;
 pub mod epic;

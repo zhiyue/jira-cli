@@ -134,3 +134,10 @@ pub fn epic_remove_issues(client: &HttpClient, issues: &[String]) -> Result<()> 
 fn urlenc(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
+
+// ---- Backlog ----
+
+pub fn backlog_move(client: &HttpClient, issues: &[String]) -> Result<()> {
+    let body = serde_json::json!({ "issues": issues });
+    client.post_empty("/rest/agile/1.0/backlog/issue", &body)
+}

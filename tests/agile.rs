@@ -120,3 +120,20 @@ async fn epic_remove_issues_routes_to_none() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn backlog_move() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("POST"))
+        .and(path("/rest/agile/1.0/backlog/issue"))
+        .and(wiremock::matchers::body_partial_json(
+            json!({"issues":["MGX-1","MGX-2"]}),
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    in_blocking(move || {
+        agile::backlog_move(&client, &["MGX-1".into(), "MGX-2".into()]).unwrap();
+    })
+    .await;
+}

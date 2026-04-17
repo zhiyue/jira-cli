@@ -53,6 +53,8 @@ pub enum IssueCmd {
     Delete(IssueDelete),
     /// Assign an issue to a user or unassign (PUT /issue/{key}/assignee)
     Assign(IssueAssign),
+    /// Bulk-create issues (POST /issue/bulk). Input is a JSON array of {fields:{...}} objects.
+    BulkCreate(IssueBulkCreate),
 }
 
 #[derive(clap::Args, Debug)]
@@ -106,4 +108,11 @@ pub struct IssueAssign {
     pub user: Option<String>,
     #[arg(long, conflicts_with = "user")]
     pub unassign: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueBulkCreate {
+    /// Path to JSON array file, or `-` for stdin
+    #[arg(long = "from-file", value_name = "PATH")]
+    pub from_file: String,
 }

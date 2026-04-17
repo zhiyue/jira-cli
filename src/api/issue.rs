@@ -61,6 +61,34 @@ pub fn assign(client: &HttpClient, key: &str, assignee: Option<&str>) -> Result<
     map_issue_err(crate::http::check_status(resp).map(|_| ()), key)
 }
 
+pub const BULK_CREATE_BATCH_SIZE: usize = 50;
+
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct BulkCreateResults {
+    #[serde(default)]
+    pub created: Vec<Value>,
+    #[serde(default)]
+    pub errors: Vec<Value>,
+}
+
+pub fn bulk_create(client: &HttpClient, inputs: &[Value]) -> Result<BulkCreateResults> {
+    let mut out = BulkCreateResults::default();
+    for chunk in inputs.chunks(BULK_CREATE_BATCH_SIZE) {
+        let body = serde_json::json!({ "issueUpdates": chunk });
+        #[derive(serde::Deserialize)]
+        struct Raw {
+            #[serde(default)]
+            issues: Vec<Value>,
+            #[serde(default)]
+            errors: Vec<Value>,
+        }
+        let raw: Raw = client.post_json("/rest/api/2/issue/bulk", &body)?;
+        out.created.extend(raw.issues);
+        out.errors.extend(raw.errors);
+    }
+    Ok(out)
+}
+
 fn urlencoding(s: &str) -> String {
     // Jira issue keys are ASCII [A-Z]+-\d+, but url-encode defensively.
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()

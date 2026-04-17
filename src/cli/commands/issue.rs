@@ -20,6 +20,7 @@ pub fn dispatch<W: Write>(
         IssueCmd::Update(a) => update(out, client, a),
         IssueCmd::Delete(a) => delete(out, client, a),
         IssueCmd::Assign(a) => assign(out, client, a),
+        IssueCmd::BulkCreate(a) => bulk_create(out, client, g, a),
     }
 }
 
@@ -148,6 +149,48 @@ fn resolve_raw_value(raw: &crate::cli::args::RawValue) -> Result<serde_json::Val
             std::io::stdin().read_to_string(&mut buf)?;
             Ok(serde_json::Value::String(buf))
         }
+    }
+}
+
+fn bulk_create<W: Write>(
+    out: &mut W,
+    client: &HttpClient,
+    g: &GlobalArgs,
+    args: &crate::cli::IssueBulkCreate,
+) -> Result<()> {
+    let bytes = read_input(&args.from_file)?;
+    let inputs: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
+    let results = issue::bulk_create(client, &inputs)?;
+
+    // JSONL: one line per created, one per error, plus summary.
+    let mut opts = g.output_options(Format::Jsonl, None);
+    opts.pretty = false;
+    for created in &results.created {
+        crate::output::emit_line(out, &serde_json::json!({"ok": true, "data": created}))?;
+    }
+    for err in &results.errors {
+        crate::output::emit_line(out, &serde_json::json!({"ok": false, "error": err}))?;
+    }
+    crate::output::emit_line(
+        out,
+        &serde_json::json!({
+            "summary": {
+                "ok": results.created.len(),
+                "failed": results.errors.len()
+            }
+        }),
+    )?;
+    Ok(())
+}
+
+fn read_input(path: &str) -> Result<Vec<u8>> {
+    use std::io::Read;
+    if path == "-" {
+        let mut buf = Vec::new();
+        std::io::stdin().read_to_end(&mut buf)?;
+        Ok(buf)
+    } else {
+        Ok(std::fs::read(path)?)
     }
 }
 

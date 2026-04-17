@@ -10,6 +10,7 @@ pub mod link;
 pub mod meta;
 pub mod project;
 pub mod search;
+pub mod session;
 pub mod transitions;
 pub mod user;
 pub mod watchers;

@@ -1,6 +1,6 @@
 //! Match subcommand → run.
 
-use crate::cli::{commands, Cli, Command};
+use crate::cli::{commands, Cli, Command, SessionCmd};
 use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
@@ -21,5 +21,6 @@ pub fn run<W: Write>(out: &mut W, cfg: &JiraConfig, client: &HttpClient, cli: &C
         Command::Sprint(sub) => commands::sprint::dispatch(out, client, &cli.global, sub),
         Command::Epic(sub) => commands::epic::dispatch(out, client, &cli.global, sub),
         Command::Backlog(sub) => commands::backlog::dispatch(out, client, &cli.global, sub),
+        Command::Session(SessionCmd::New) => commands::meta::session_new(out, cfg),
     }
 }

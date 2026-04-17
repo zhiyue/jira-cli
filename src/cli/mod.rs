@@ -59,6 +59,16 @@ pub enum Command {
     /// Agile: backlog
     #[command(subcommand)]
     Backlog(BacklogCmd),
+    /// Bootstrap a cookie session: POST /rest/auth/1/session.
+    /// Reads username/password from JIRA_USER/JIRA_PASSWORD env, falling back to
+    /// stdin (line-delimited). Prints the cookie string to stdout.
+    #[command(subcommand)]
+    Session(SessionCmd),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SessionCmd {
+    New,
 }
 
 #[derive(Subcommand, Debug)]

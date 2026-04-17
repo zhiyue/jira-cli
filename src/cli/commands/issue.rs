@@ -40,6 +40,7 @@ pub fn dispatch<W: Write>(
             crate::cli::commands::attachment::dispatch(out, client, g, sub)
         }
         IssueCmd::Worklog(sub) => crate::cli::commands::worklog::dispatch(out, client, g, sub),
+        IssueCmd::Watchers(sub) => crate::cli::commands::watchers::dispatch(out, client, g, sub),
     }
 }
 

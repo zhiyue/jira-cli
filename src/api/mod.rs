@@ -9,4 +9,5 @@ pub mod link;
 pub mod meta;
 pub mod search;
 pub mod transitions;
+pub mod watchers;
 pub mod worklog;

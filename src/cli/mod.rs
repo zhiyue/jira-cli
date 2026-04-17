@@ -77,6 +77,9 @@ pub enum IssueCmd {
     /// Time-tracking worklogs
     #[command(subcommand)]
     Worklog(WorklogCmd),
+    /// Issue watchers
+    #[command(subcommand)]
+    Watchers(WatchersCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -261,4 +264,11 @@ pub enum AttachmentCmd {
     },
     /// Delete an attachment by id
     Delete { attachment_id: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WatchersCmd {
+    List { key: String },
+    Add { key: String, user: String },
+    Remove { key: String, user: String },
 }

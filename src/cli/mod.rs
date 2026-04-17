@@ -23,6 +23,9 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /// Parallel bulk operations
+    #[command(subcommand)]
+    Bulk(BulkCmd),
     /// Connectivity probe: GET /rest/api/2/serverInfo
     Ping,
     /// Current authenticated user: GET /rest/api/2/myself
@@ -333,6 +336,24 @@ pub enum EpicCmd {
 pub enum BacklogCmd {
     /// Move issues to backlog (removes them from all future/active sprints)
     Move { keys: Vec<String> },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum BulkCmd {
+    /// Bulk-transition issues from a JSONL file
+    Transition {
+        #[arg(long)]
+        file: String,
+        #[arg(long)]
+        concurrency: Option<usize>,
+    },
+    /// Bulk-comment issues from a JSONL file
+    Comment {
+        #[arg(long)]
+        file: String,
+        #[arg(long)]
+        concurrency: Option<usize>,
+    },
 }
 
 #[derive(Subcommand, Debug)]

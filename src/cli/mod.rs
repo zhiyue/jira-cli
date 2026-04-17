@@ -36,6 +36,8 @@ pub enum Command {
     /// Field metadata operations
     #[command(subcommand)]
     Field(FieldCmd),
+    /// Run a JQL query (POST /rest/api/2/search); streams JSONL
+    Search(SearchArgs),
 }
 
 #[derive(Subcommand, Debug)]
@@ -131,4 +133,20 @@ pub enum FieldCmd {
 #[derive(clap::Args, Debug)]
 pub struct FieldResolveArgs {
     pub name: String,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SearchArgs {
+    pub jql: String,
+    /// Comma-separated Jira-side field selector
+    #[arg(long = "jira-fields")]
+    pub jira_fields: Option<String>,
+    #[arg(long)]
+    pub expand: Option<String>,
+    /// Cap total results emitted (after server-side pagination)
+    #[arg(long)]
+    pub max: Option<u64>,
+    /// Page size sent to server (default 100)
+    #[arg(long = "page-size", default_value_t = 100)]
+    pub page_size: u64,
 }

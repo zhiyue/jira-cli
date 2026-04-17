@@ -86,3 +86,37 @@ async fn move_issues_to_sprint_auto_batches_50() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn epic_add_issues() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("POST"))
+        .and(path("/rest/agile/1.0/epic/MGX-1/issue"))
+        .and(wiremock::matchers::body_partial_json(
+            json!({"issues":["MGX-2","MGX-3"]}),
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    in_blocking(move || {
+        agile::epic_add_issues(&client, "MGX-1", &["MGX-2".into(), "MGX-3".into()]).unwrap();
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn epic_remove_issues_routes_to_none() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("POST"))
+        .and(path("/rest/agile/1.0/epic/none/issue"))
+        .and(wiremock::matchers::body_partial_json(
+            json!({"issues":["MGX-2"]}),
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    in_blocking(move || {
+        agile::epic_remove_issues(&client, &["MGX-2".into()]).unwrap();
+    })
+    .await;
+}

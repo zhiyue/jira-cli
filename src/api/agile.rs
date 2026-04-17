@@ -107,3 +107,30 @@ pub fn move_issues_to_sprint(client: &HttpClient, id: u64, keys: &[String]) -> R
     }
     Ok(())
 }
+
+// ---- Epic ----
+
+pub fn get_epic(client: &HttpClient, key: &str) -> Result<Value> {
+    client.get_json(&format!("/rest/agile/1.0/epic/{}", urlenc(key)))
+}
+
+pub fn epic_issues(client: &HttpClient, key: &str) -> Result<Value> {
+    client.get_json(&format!("/rest/agile/1.0/epic/{}/issue", urlenc(key)))
+}
+
+pub fn epic_add_issues(client: &HttpClient, key: &str, issues: &[String]) -> Result<()> {
+    let body = serde_json::json!({ "issues": issues });
+    client.post_empty(
+        &format!("/rest/agile/1.0/epic/{}/issue", urlenc(key)),
+        &body,
+    )
+}
+
+pub fn epic_remove_issues(client: &HttpClient, issues: &[String]) -> Result<()> {
+    let body = serde_json::json!({ "issues": issues });
+    client.post_empty("/rest/agile/1.0/epic/none/issue", &body)
+}
+
+fn urlenc(s: &str) -> String {
+    url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
+}

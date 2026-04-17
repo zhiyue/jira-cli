@@ -50,6 +50,9 @@ pub enum Command {
     /// Agile: sprints
     #[command(subcommand)]
     Sprint(SprintCmd),
+    /// Agile: epics
+    #[command(subcommand)]
+    Epic(EpicCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -313,6 +316,14 @@ pub enum BoardCmd {
     Backlog {
         id: u64,
     },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum EpicCmd {
+    Get { key: String },
+    Issues { key: String },
+    AddIssues { key: String, issues: Vec<String> },
+    RemoveIssues { issues: Vec<String> },
 }
 
 #[derive(Subcommand, Debug)]

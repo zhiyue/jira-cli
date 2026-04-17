@@ -18,5 +18,6 @@ pub fn run<W: Write>(out: &mut W, cfg: &JiraConfig, client: &HttpClient, cli: &C
         Command::User(sub) => commands::user::dispatch(out, client, &cli.global, sub),
         Command::Board(sub) => commands::board::dispatch(out, client, &cli.global, sub),
         Command::Sprint(sub) => commands::sprint::dispatch(out, client, &cli.global, sub),
+        Command::Epic(sub) => commands::epic::dispatch(out, client, &cli.global, sub),
     }
 }

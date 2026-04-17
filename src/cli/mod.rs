@@ -74,6 +74,9 @@ pub enum IssueCmd {
     /// Issue attachments
     #[command(subcommand)]
     Attachment(AttachmentCmd),
+    /// Time-tracking worklogs
+    #[command(subcommand)]
+    Worklog(WorklogCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -216,6 +219,28 @@ pub enum LinkCmd {
     },
     /// Delete a link by id
     Delete { link_id: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WorklogCmd {
+    List {
+        key: String,
+    },
+    Add {
+        key: String,
+        /// e.g. "1h 30m"
+        #[arg(long)]
+        time: String,
+        /// ISO 8601 started timestamp
+        #[arg(long)]
+        started: Option<String>,
+        #[arg(long)]
+        comment: Option<String>,
+    },
+    Delete {
+        key: String,
+        id: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]

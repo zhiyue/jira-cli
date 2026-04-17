@@ -33,6 +33,9 @@ pub enum Command {
     /// Issue-level operations
     #[command(subcommand)]
     Issue(IssueCmd),
+    /// Field metadata operations
+    #[command(subcommand)]
+    Field(FieldCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -115,4 +118,17 @@ pub struct IssueBulkCreate {
     /// Path to JSON array file, or `-` for stdin
     #[arg(long = "from-file", value_name = "PATH")]
     pub from_file: String,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum FieldCmd {
+    /// List all fields (standard + custom) via GET /rest/api/2/field
+    List,
+    /// Resolve a field display name to its id (e.g. "Story Points" → customfield_10020)
+    Resolve(FieldResolveArgs),
+}
+
+#[derive(clap::Args, Debug)]
+pub struct FieldResolveArgs {
+    pub name: String,
 }

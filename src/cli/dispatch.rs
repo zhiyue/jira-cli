@@ -12,5 +12,6 @@ pub fn run<W: Write>(out: &mut W, cfg: &JiraConfig, client: &HttpClient, cli: &C
         Command::Whoami => commands::meta::whoami(out, client, &cli.global),
         Command::Config(sub) => commands::meta::config(out, cfg, &cli.global, sub),
         Command::Issue(sub) => commands::issue::dispatch(out, client, &cli.global, sub),
+        Command::Field(sub) => commands::field::dispatch(out, client, &cli.global, sub),
     }
 }

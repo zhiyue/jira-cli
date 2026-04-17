@@ -46,8 +46,9 @@ fn create<W: Write>(
     args: &crate::cli::IssueCreate,
 ) -> Result<()> {
     use crate::cli::args::SetArg;
-    use crate::error::Error;
+    use crate::field_resolver::FieldResolver;
     let sets = SetArg::parse_many(&args.set)?;
+    let resolver = FieldResolver::new(client);
     let mut fields = serde_json::Map::new();
     fields.insert("project".into(), serde_json::json!({"key": args.project}));
     fields.insert(
@@ -56,15 +57,9 @@ fn create<W: Write>(
     );
     fields.insert("summary".into(), serde_json::json!(args.summary));
     for set in &sets {
-        if !set.key.starts_with("customfield_") && set.key.chars().any(|c| c == ' ') {
-            return Err(Error::Usage(format!(
-                "display-name translation for --set key '{}' lands in a later task; \
-                 for now use customfield_XXXXX or a Jira schema field id",
-                set.key
-            )));
-        }
+        let id = resolver.resolve(&set.key)?;
         let value = resolve_raw_value(&set.raw)?;
-        fields.insert(set.key.clone(), value);
+        fields.insert(id, value);
     }
     let body = serde_json::json!({ "fields": fields });
     let v = issue::create(client, &body)?;
@@ -82,11 +77,14 @@ fn update<W: Write>(
     args: &crate::cli::IssueUpdate,
 ) -> Result<()> {
     use crate::cli::args::SetArg;
+    use crate::field_resolver::FieldResolver;
     let sets = SetArg::parse_many(&args.set)?;
+    let resolver = FieldResolver::new(client);
     let mut fields = serde_json::Map::new();
     for set in &sets {
+        let id = resolver.resolve(&set.key)?;
         let value = resolve_raw_value(&set.raw)?;
-        fields.insert(set.key.clone(), value);
+        fields.insert(id, value);
     }
     let body = serde_json::json!({ "fields": fields });
     issue::update(client, &args.key, &body)?;

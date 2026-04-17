@@ -60,6 +60,30 @@ pub enum IssueCmd {
     Assign(IssueAssign),
     /// Bulk-create issues (POST /issue/bulk). Input is a JSON array of {fields:{...}} objects.
     BulkCreate(IssueBulkCreate),
+    /// Comment operations (list, add, update, delete)
+    #[command(subcommand)]
+    Comment(CommentCmd),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CommentCmd {
+    /// List comments on an issue
+    List { key: String },
+    /// Add a comment to an issue
+    Add {
+        key: String,
+        #[arg(short, long)]
+        body: String,
+    },
+    /// Update an existing comment
+    Update {
+        key: String,
+        id: String,
+        #[arg(short, long)]
+        body: String,
+    },
+    /// Delete a comment
+    Delete { key: String, id: String },
 }
 
 #[derive(clap::Args, Debug)]

@@ -21,6 +21,7 @@ pub fn dispatch<W: Write>(
         IssueCmd::Delete(a) => delete(out, client, a),
         IssueCmd::Assign(a) => assign(out, client, a),
         IssueCmd::BulkCreate(a) => bulk_create(out, client, g, a),
+        IssueCmd::Comment(sub) => crate::cli::commands::comment::dispatch(out, client, g, sub),
     }
 }
 

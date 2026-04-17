@@ -34,6 +34,14 @@ fn try_main(cli: &Cli) -> jira_cli::Result<()> {
     if cli.global.insecure {
         cfg.insecure = true;
     }
+    if cfg.insecure {
+        eprintln!(
+            "{}",
+            serde_json::json!({
+                "warning": "TLS verification disabled; do not use in production"
+            })
+        );
+    }
     let client = HttpClient::new(&cfg)?;
     dispatch::run(&mut lock, &cfg, &client, cli)?;
     lock.flush()?;

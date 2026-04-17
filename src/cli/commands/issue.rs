@@ -2,7 +2,7 @@
 
 use crate::api::issue;
 use crate::cli::args::GlobalArgs;
-use crate::cli::IssueCmd;
+use crate::cli::{IssueCmd, TransitionsCmd};
 use crate::error::Result;
 use crate::http::HttpClient;
 use crate::output::{emit_value, Format};
@@ -22,6 +22,19 @@ pub fn dispatch<W: Write>(
         IssueCmd::Assign(a) => assign(out, client, a),
         IssueCmd::BulkCreate(a) => bulk_create(out, client, g, a),
         IssueCmd::Comment(sub) => crate::cli::commands::comment::dispatch(out, client, g, sub),
+        IssueCmd::Transitions(TransitionsCmd::List { key }) => {
+            let list = crate::api::transitions::list(client, key)?;
+            let opts = g.output_options(Format::Jsonl, None);
+            for t in &list.transitions {
+                crate::output::emit_value(out, t.clone(), &opts)?;
+            }
+            crate::output::emit_line(
+                out,
+                &serde_json::json!({"summary":{"count": list.transitions.len()}}),
+            )?;
+            Ok(())
+        }
+        IssueCmd::Transition(a) => transition(out, client, a),
     }
 }
 
@@ -128,6 +141,42 @@ fn assign<W: Write>(
         out,
         "{}",
         serde_json::json!({"ok": true, "key": args.key, "assignee": target})
+    )?;
+    Ok(())
+}
+
+fn transition<W: Write>(
+    out: &mut W,
+    client: &HttpClient,
+    args: &crate::cli::TransitionArgs,
+) -> Result<()> {
+    use crate::api::transitions;
+    use crate::cli::args::SetArg;
+    use crate::field_resolver::FieldResolver;
+    let id = if args.to.chars().all(|c| c.is_ascii_digit()) {
+        args.to.clone()
+    } else {
+        transitions::resolve_name(client, &args.key, &args.to)?
+    };
+
+    let fields = if args.set.is_empty() {
+        None
+    } else {
+        let resolver = FieldResolver::new(client);
+        let mut map = serde_json::Map::new();
+        for raw in SetArg::parse_many(&args.set)? {
+            let id = resolver.resolve(&raw.key)?;
+            let value = resolve_raw_value(&raw.raw)?;
+            map.insert(id, value);
+        }
+        Some(serde_json::Value::Object(map))
+    };
+
+    transitions::execute(client, &args.key, &id, fields)?;
+    writeln!(
+        out,
+        "{}",
+        serde_json::json!({"ok": true, "key": args.key, "transition_id": id})
     )?;
     Ok(())
 }

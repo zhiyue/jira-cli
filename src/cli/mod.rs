@@ -63,6 +63,11 @@ pub enum IssueCmd {
     /// Comment operations (list, add, update, delete)
     #[command(subcommand)]
     Comment(CommentCmd),
+    /// Show available transitions for an issue
+    #[command(subcommand)]
+    Transitions(TransitionsCmd),
+    /// Execute a transition
+    Transition(TransitionArgs),
 }
 
 #[derive(Subcommand, Debug)]
@@ -173,4 +178,21 @@ pub struct SearchArgs {
     /// Page size sent to server (default 100)
     #[arg(long = "page-size", default_value_t = 100)]
     pub page_size: u64,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TransitionsCmd {
+    /// List available transitions for an issue
+    List { key: String },
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TransitionArgs {
+    pub key: String,
+    /// Transition name or id
+    #[arg(long)]
+    pub to: String,
+    /// Optional field updates to send with the transition
+    #[arg(long = "set", value_name = "KEY=VALUE")]
+    pub set: Vec<String>,
 }

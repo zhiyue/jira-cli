@@ -68,6 +68,9 @@ pub enum IssueCmd {
     Transitions(TransitionsCmd),
     /// Execute a transition
     Transition(TransitionArgs),
+    /// Manage issue links
+    #[command(subcommand)]
+    Link(LinkCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -195,4 +198,19 @@ pub struct TransitionArgs {
     /// Optional field updates to send with the transition
     #[arg(long = "set", value_name = "KEY=VALUE")]
     pub set: Vec<String>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum LinkCmd {
+    /// List links on an issue (derived from issue fields.issuelinks)
+    List { key: String },
+    /// Add a link. `from` is the outward side (e.g. "blocks").
+    Add {
+        from: String,
+        to: String,
+        #[arg(long)]
+        r#type: String,
+    },
+    /// Delete a link by id
+    Delete { link_id: String },
 }

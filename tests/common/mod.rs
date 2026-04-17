@@ -10,6 +10,7 @@ use jira_cli::http::HttpClient;
 use url::Url;
 use wiremock::MockServer;
 
+#[allow(dead_code)] // used in auth_basic.rs; appears unused in other test binaries
 pub async fn spawn_mock_basic() -> (MockServer, HttpClient) {
     let server = MockServer::start().await;
     let uri = server.uri();
@@ -31,7 +32,7 @@ pub async fn spawn_mock_basic() -> (MockServer, HttpClient) {
     (server, client)
 }
 
-#[allow(dead_code)] // used in T5 cookie-auth tests
+#[allow(dead_code)] // used in auth_cookie.rs; appears unused in other test binaries
 pub async fn spawn_mock_cookie() -> (MockServer, HttpClient) {
     let server = MockServer::start().await;
     let uri = server.uri();

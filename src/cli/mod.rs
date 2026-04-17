@@ -44,6 +44,9 @@ pub enum Command {
     /// User operations
     #[command(subcommand)]
     User(UserCmd),
+    /// Agile: boards
+    #[command(subcommand)]
+    Board(BoardCmd),
 }
 
 #[derive(Subcommand, Debug)]
@@ -290,4 +293,21 @@ pub enum ProjectCmd {
 pub enum UserCmd {
     Get { username: String },
     Search { query: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum BoardCmd {
+    /// List boards (optionally filtered by type: scrum, kanban)
+    List {
+        #[arg(long)]
+        r#type: Option<String>,
+        #[arg(long)]
+        project: Option<String>,
+    },
+    Get {
+        id: u64,
+    },
+    Backlog {
+        id: u64,
+    },
 }

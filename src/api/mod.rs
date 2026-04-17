@@ -1,6 +1,7 @@
 //! Typed, pure wrappers around Jira REST endpoints. No I/O besides the
 //! HttpClient; no CLI concerns.
 
+pub mod agile;
 pub mod attachment;
 pub mod comment;
 pub mod field;

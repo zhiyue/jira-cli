@@ -16,5 +16,6 @@ pub fn run<W: Write>(out: &mut W, cfg: &JiraConfig, client: &HttpClient, cli: &C
         Command::Search(a) => commands::search::run(out, client, &cli.global, a),
         Command::Project(sub) => commands::project::dispatch(out, client, &cli.global, sub),
         Command::User(sub) => commands::user::dispatch(out, client, &cli.global, sub),
+        Command::Board(sub) => commands::board::dispatch(out, client, &cli.global, sub),
     }
 }

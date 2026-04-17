@@ -27,14 +27,34 @@ pub enum Command {
     Ping,
     /// Current authenticated user: GET /rest/api/2/myself
     Whoami,
-    /// Print effective configuration (secrets redacted)
-    #[command(name = "config", subcommand)]
+    /// Effective configuration view
+    #[command(subcommand)]
     Config(ConfigCmd),
-    // Further subcommands are added by later tasks.
+    /// Issue-level operations
+    #[command(subcommand)]
+    Issue(IssueCmd),
 }
 
 #[derive(Subcommand, Debug)]
 pub enum ConfigCmd {
     /// Print the parsed configuration
     Show,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum IssueCmd {
+    /// GET /rest/api/2/issue/{key}
+    Get(IssueGet),
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueGet {
+    /// Issue key (e.g. MGX-42)
+    pub key: String,
+    /// Comma-separated fields to include (maps to Jira's `fields` query param)
+    #[arg(long)]
+    pub jira_fields: Option<String>,
+    /// Comma-separated `expand` values (e.g. changelog,renderedFields)
+    #[arg(long)]
+    pub expand: Option<String>,
 }

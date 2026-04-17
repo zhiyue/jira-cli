@@ -149,7 +149,7 @@ fn check_status_no_body(resp: Response) -> Result<()> {
     check_status(resp).map(|_| ())
 }
 
-pub(crate) fn check_status(resp: Response) -> Result<Response> {
+pub fn check_status(resp: Response) -> Result<Response> {
     if let Some(err) = auth::detect_seraph(resp.headers()) {
         return Err(Error::Auth(err));
     }

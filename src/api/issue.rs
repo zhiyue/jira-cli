@@ -33,6 +33,34 @@ pub(crate) fn map_issue_err<T>(result: Result<T>, key: &str) -> Result<T> {
     }
 }
 
+pub fn create(client: &HttpClient, body: &Value) -> Result<Value> {
+    client.post_json("/rest/api/2/issue", body)
+}
+
+pub fn update(client: &HttpClient, key: &str, body: &Value) -> Result<()> {
+    let path = format!("/rest/api/2/issue/{}", urlencoding(key));
+    let req = client
+        .request_builder(reqwest::Method::PUT, &path)?
+        .json(body);
+    let resp = client.send(req, false)?;
+    map_issue_err(crate::http::check_status(resp).map(|_| ()), key)
+}
+
+pub fn delete(client: &HttpClient, key: &str) -> Result<()> {
+    let path = format!("/rest/api/2/issue/{}", urlencoding(key));
+    map_issue_err(client.delete(&path), key)
+}
+
+pub fn assign(client: &HttpClient, key: &str, assignee: Option<&str>) -> Result<()> {
+    let path = format!("/rest/api/2/issue/{}/assignee", urlencoding(key));
+    let body = serde_json::json!({ "name": assignee });
+    let req = client
+        .request_builder(reqwest::Method::PUT, &path)?
+        .json(&body);
+    let resp = client.send(req, false)?;
+    map_issue_err(crate::http::check_status(resp).map(|_| ()), key)
+}
+
 fn urlencoding(s: &str) -> String {
     // Jira issue keys are ASCII [A-Z]+-\d+, but url-encode defensively.
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()

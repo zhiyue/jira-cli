@@ -45,6 +45,14 @@ pub enum ConfigCmd {
 pub enum IssueCmd {
     /// GET /rest/api/2/issue/{key}
     Get(IssueGet),
+    /// Create a new issue (POST /issue)
+    Create(IssueCreate),
+    /// Update an existing issue (PUT /issue/{key})
+    Update(IssueUpdate),
+    /// Delete an issue (DELETE /issue/{key})
+    Delete(IssueDelete),
+    /// Assign an issue to a user or unassign (PUT /issue/{key}/assignee)
+    Assign(IssueAssign),
 }
 
 #[derive(clap::Args, Debug)]
@@ -57,4 +65,45 @@ pub struct IssueGet {
     /// Comma-separated `expand` values (e.g. changelog,renderedFields)
     #[arg(long)]
     pub expand: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueCreate {
+    /// Project key, e.g. MGX
+    #[arg(short, long)]
+    pub project: String,
+    /// Issue type name or id (e.g. Task, Bug)
+    #[arg(short = 't', long = "type")]
+    pub issue_type: String,
+    /// Summary (required)
+    #[arg(short, long)]
+    pub summary: String,
+    /// Repeatable KEY=VALUE. VALUE can be scalar, JSON literal, @file, or @-.
+    #[arg(long = "set", value_name = "KEY=VALUE")]
+    pub set: Vec<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueUpdate {
+    pub key: String,
+    #[arg(long = "set", value_name = "KEY=VALUE", required = true)]
+    pub set: Vec<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueDelete {
+    pub key: String,
+    /// Required confirmation (safety gate)
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueAssign {
+    pub key: String,
+    /// Assignee username; omit or pass --unassign to clear
+    #[arg(long)]
+    pub user: Option<String>,
+    #[arg(long, conflicts_with = "user")]
+    pub unassign: bool,
 }

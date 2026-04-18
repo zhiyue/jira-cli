@@ -1,100 +1,251 @@
 # jira-cli
 
-Agent-first CLI for legacy **Jira Server 8.13.5**. Stateless, JSON-first, typed errors with stable exit codes, self-describing schema for capability discovery.
+Agent-first CLI for legacy **Jira Server 8.13.5**. Rust, single binary, no daemon, TOML config.
 
-> Targets Jira Server/DC **8.13.5** specifically — no Atlassian Cloud support, no Personal Access Tokens (PAT only ships 8.14+). Uses Basic auth or cookie session (`/rest/auth/1/session`).
+> Targets Jira Server/DC 8.13.5 specifically — no Cloud, no PAT (PAT ships 8.14+). Uses Basic Auth or cookie session (`/rest/auth/1/session`).
 
-## Quick start
+## Why
+
+Modern Jira CLIs assume Cloud or newer Server versions. For teams stuck on 8.13.5, options are thin. This tool:
+
+- Speaks Jira 8.13.5's native REST v2 + Agile 1.0 exactly
+- JSON/JSONL output by default (agent-friendly, no HTML table noise)
+- Typed errors with stable exit codes + actionable `hint` field
+- `schema` self-introspection so agents can discover the CLI
+- Field aliases + renames for messy customfield landscapes
+- TOML config with defaults, JQL aliases, per-command field projections
+
+## Install
+
+### Homebrew (macOS + Linux)
+
+If the maintainer has published a tap:
 
 ```bash
-export JIRA_URL="https://jira.internal.example.com"
-export JIRA_USER="alice"
-export JIRA_PASSWORD="..."
+brew tap zhiyue/jira-cli     # or whatever the tap is
+brew install jira-cli
+```
+
+### Install script (macOS + Linux)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/zhiyue/jira-cli/main/install.sh | sh
+```
+
+Options: `install.sh -v v0.1.0`, `-d /usr/local/bin`, `-b https://internal-mirror.example.com/...`.
+
+### Install script (Windows PowerShell)
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/zhiyue/jira-cli/main/install.ps1 | iex
+```
+
+### `cargo install` (any platform with Rust ≥ 1.88)
+
+```bash
+cargo install --git https://github.com/zhiyue/jira-cli --locked
+```
+
+### Manual
+
+Download the tarball for your platform from the [Releases page](https://github.com/zhiyue/jira-cli/releases), extract, put `jira-cli` on your PATH.
+
+## Quickstart
+
+```bash
+# one-time
+jira-cli config init \
+    --url https://jira.internal.example.com \
+    --user alice \
+    --password "$JIRA_PASSWORD"
 
 jira-cli ping
 jira-cli whoami
 jira-cli issue get MGX-1 --pretty
-jira-cli search "project = MGX AND status = Open" --max 50
-jira-cli issue create -p MGX -t Task -s "Fix login" \
-    --set 'Labels=["urgent"]' --set "Story Points=3"
-jira-cli issue transition MGX-1 --to "In Progress"
-jira-cli issue comment add MGX-1 --body "Deployed to staging."
-jira-cli sprint move 100 MGX-1 MGX-2 MGX-3
+jira-cli search "project = MGX AND status = Open" --max 20 --keys-only
 ```
 
 ## Configuration
 
-Environment variables (no config file, no on-disk state):
+Default path: `$XDG_CONFIG_HOME/jira-cli/config.toml` (typically `~/.config/jira-cli/config.toml`). Mode `0600` enforced.
 
-| Var | Required | Notes |
-|---|---|---|
-| `JIRA_URL` | ✅ | Base URL |
-| `JIRA_AUTH_METHOD` |  | `basic` (default) or `cookie` |
-| `JIRA_USER` / `JIRA_PASSWORD` | basic | |
-| `JIRA_SESSION_COOKIE` | cookie | e.g. `JSESSIONID=abc...` |
-| `JIRA_TIMEOUT` |  | seconds, default 30 |
-| `JIRA_INSECURE` |  | `1` to skip TLS verification |
-| `JIRA_CONCURRENCY` |  | bulk worker count, default 4, max 16 |
+Precedence for resolved values: **CLI flag > env var > config file > built-in default**.
 
-## Cookie auth bootstrap
+Full example:
 
-```bash
-# one-time: produce the cookie, stash it in your shell
-export JIRA_SESSION_COOKIE=$(
-  JIRA_USER=alice JIRA_PASSWORD=... jira-cli session new | jq -r .cookie
-)
-export JIRA_AUTH_METHOD=cookie
-```
+```toml
+# basic connection
+url = "https://jira.internal.example.com"
+user = "alice"
+password = "your-password-or-token"
+insecure = false
+timeout_secs = 30
+concurrency = 4
 
-## Field aliases
+# auth_method = "cookie"                         # optional; default "basic"
+# session_cookie = "JSESSIONID=..."              # required if cookie auth
 
-Jira often has multiple custom fields with the same display name (e.g. "Story Points"
-across legacy projects). Pin the one you want in `~/.config/jira-cli/config.toml`:
+# default jira-fields (server-side) per command
+[defaults]
+auto_rename_custom_fields = false                # opt-in: slug field names
+search_fields = ["summary", "status", "priority", "assignee", "issuetype", "updated"]
+issue_get_fields = [
+    "summary", "status", "priority", "assignee",
+    "reporter", "issuetype", "components", "labels",
+    "created", "updated", "resolution", "description",
+    # ... your customfield ids
+]
 
-~~~toml
+# Display name → field id (write path, --set)
 [field_aliases]
 "Story Points" = "customfield_10006"
-"Epic Link" = "customfield_10000"
-~~~
 
-Or override ad-hoc per command: `--field-alias "Story Points=customfield_11322"` (repeatable).
+# customfield id → readable key (read path, output rewrite)
+[field_renames]
+customfield_10006 = "story_points"
+customfield_11604 = "bug_url"
 
-## Agent capability discovery
+# named JQL snippets (use with `search @name`)
+[jql_aliases]
+mine_open = "assignee = currentUser() AND resolution = Unresolved"
+critical = "priority in (Highest, High) AND resolution = Unresolved"
+```
+
+### Environment variables
+
+Any of the config keys above can be overridden via env:
+
+| Var | Meaning |
+|---|---|
+| `JIRA_URL`, `JIRA_USER`, `JIRA_PASSWORD` | Basic auth |
+| `JIRA_AUTH_METHOD=cookie` + `JIRA_SESSION_COOKIE` | Cookie auth |
+| `JIRA_TIMEOUT`, `JIRA_INSECURE`, `JIRA_CONCURRENCY` | Runtime |
+| `XDG_CONFIG_HOME` | Override config dir base |
+
+## Agent quickstart
+
+The tool is optimized for LLM/agent consumption. Four patterns:
+
+**1. Capability discovery**
 
 ```bash
 jira-cli schema | jq '.commands | keys'
-jira-cli schema issue | jq '.subcommands.get.args'
+jira-cli schema issue | jq '.subcommands.get'
+```
+
+**2. Minimal-token issue inspection**
+
+```bash
+jira-cli issue get MGX-1 --pretty                           # defaults apply (configured fields)
+jira-cli issue get MGX-1 --jira-fields ""                   # full payload (bypass defaults)
+jira-cli issue get MGX-1 --fields "key,fields.summary,fields.status.name,fields.bug_url"
+```
+
+With `auto_rename_custom_fields = true` and proper `[field_renames]`, the output uses snake_case keys like `story_points` / `bug_url` / `solution` instead of `customfield_10006` etc.
+
+**3. Streaming JQL for large result sets**
+
+```bash
+jira-cli search @mine_open --max 500 --keys-only   # pipe into xargs / other tools
+jira-cli search "project = MGX AND updated > -7d" --page-size 100
+```
+
+**4. Bulk writes**
+
+```bash
+cat <<EOF > comments.jsonl
+{"key":"MGX-1","body":"deployed to staging"}
+{"key":"MGX-2","body":"deployed to staging"}
+EOF
+jira-cli bulk comment --file comments.jsonl --concurrency 4
 ```
 
 ## Exit codes
 
-| code | meaning |
+| Code | Meaning |
 |---|---|
-| 0 | success |
-| 2 | usage / config |
-| 3 | Jira business error |
-| 4 | network |
-| 5 | auth (incl. CAPTCHA) |
-| 6 | not found |
-| 7 | internal / IO |
+| 0 | Success |
+| 2 | Usage / config error |
+| 3 | Jira API business error (400/409/422/5xx) |
+| 4 | Network error (DNS / connect / timeout / TLS) |
+| 5 | Auth error (incl. CAPTCHA) |
+| 6 | Resource not found (404) |
+| 7 | Internal / IO / deserialization |
 
-Errors go to stderr as JSON:
+Errors go to **stderr** as JSON:
 
 ```json
-{"error":{"kind":"not_found","message":"issue not found: MGX-42",
-          "hint":"Verify the issue exists or check permissions with `jira-cli whoami`"}}
+{"error":{"kind":"not_found","message":"issue not found: MGX-42","hint":"Verify the issue exists or check permissions with `jira-cli whoami`"}}
 ```
 
-## Development
+`kind` values: `config | usage | auth | not_found | api_error | network | serialization | field_resolve | io`.
+
+## Command reference
+
+Run `jira-cli schema --pretty` for the complete machine-readable tree. Quick index:
+
+- **Meta**: `ping`, `whoami`, `config {show|init}`, `schema`, `session new`, `raw`
+- **Issue core**: `issue {get|create|update|delete|assign|bulk-create|changelog}`
+- **Issue sub-resources**: `issue {comment|transitions|transition|link|attachment|worklog|watchers}`
+- **Search**: `search <JQL>` with `--max`, `--page-size`, `--start-at`, `--keys-only`, `--jira-fields`, `--expand`
+- **Metadata**: `field {list|resolve}`, `project {list|get|statuses|components}`, `user {get|search}`
+- **Agile**: `board {list|get|backlog}`, `sprint {list|get|create|update|delete|move|issues}`, `epic {get|issues|add-issues|remove-issues}`, `backlog move`
+- **Parallel bulk**: `bulk {transition|comment}`
+- **Escape hatch**: `raw <METHOD> <PATH> [-d <body|@file|->] [--query k=v] [--header k:v]`
+
+## Build from source
+
+```bash
+git clone https://github.com/zhiyue/jira-cli
+cd jira-cli
+cargo build --release
+./target/release/jira-cli --version
+```
+
+Requirements: Rust ≥ 1.88. No C compiler / OpenSSL needed (uses `rustls`).
+
+### Development
 
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test
-
-# optional contract smoke test against a real Jira
-JIRA_URL=... JIRA_USER=... JIRA_PASSWORD=... cargo test --test contract -- --ignored
 ```
+
+141+ tests, all integration tests use `wiremock` (no real Jira needed).
+
+## Troubleshooting
+
+**`auth: unauthorized` immediately on basic auth**: your Jira may require CAPTCHA after too many bad logins. Log in via browser to clear, or use cookie auth:
+
+```bash
+JIRA_USER=alice JIRA_PASSWORD=... jira-cli session new
+# copy the cookie into JIRA_SESSION_COOKIE + JIRA_AUTH_METHOD=cookie
+```
+
+**`field 'X' is ambiguous`**: the display name maps to multiple customfield ids. Either use the explicit id in `--set "customfield_10006=5"` or add a `[field_aliases]` entry.
+
+**Self-signed TLS certs**: set `insecure = true` in config or `JIRA_INSECURE=1`. A warning is shown on TTY but not on pipes/agent.
+
+**Want to debug a request**: run with `-vv` for `tracing::debug` events on stderr.
+
+## Project layout
+
+```
+src/
+  api/             # typed wrappers per Jira resource (no I/O besides HttpClient)
+  cli/             # clap derive; dispatches to api/
+  http/            # reqwest blocking + auth + retry
+  config.rs        # TOML + env merge
+  field_resolver.rs
+  output.rs        # JSON / JSONL / --fields / field_renames
+  schema.rs        # clap introspection
+  error.rs         # typed errors + exit codes + stderr JSON
+```
+
+Design docs live in `docs/superpowers/`:
+- [Spec](docs/superpowers/specs/2026-04-17-jira-cli-design.md)
+- [Implementation plan](docs/superpowers/plans/2026-04-17-jira-cli.md)
 
 ## License
 

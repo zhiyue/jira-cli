@@ -19,10 +19,13 @@ that regenerates `dist/homebrew/jira-cli.rb` on `main`.
 
 ## 1. Prepare the release commit locally
 
-Edit these three files in one commit:
+Edit these files in one commit:
 
 1. `Cargo.toml` — bump `version = "X.Y.Z"`.
-2. `CHANGELOG.md` — insert a new section above the latest one:
+2. `dist/plugin/.claude-plugin/plugin.json` — bump `version` to `X.Y.Z`.
+3. `.claude-plugin/marketplace.json` — bump the `plugins[0].version`
+   field to `X.Y.Z` to match.
+4. `CHANGELOG.md` — insert a new section above the latest one:
 
    ```
    ## [X.Y.Z] - YYYY-MM-DD
@@ -31,7 +34,7 @@ Edit these three files in one commit:
    - <user-facing summary; why it matters, not just what>
    ```
 
-3. `Cargo.lock` — refresh it by running `cargo build` (don't edit by hand).
+5. `Cargo.lock` — refresh it by running `cargo build` (don't edit by hand).
 
 Verify the new version locally:
 
@@ -150,3 +153,25 @@ The embedded git hash in `--version` comes from `build.rs` running
 (no `.git` directory), the hash falls back to `unknown`; this is
 expected and not a release blocker. Homebrew and `cargo install` both
 have git context during their builds.
+
+## Skill / plugin-only hotfixes
+
+When you need to ship a change that lives entirely under `dist/plugin/`
+or in the root `.claude-plugin/marketplace.json` — for example, a
+correction to `SKILL.md`, a new workflow in `references/workflows.md`,
+or fixing `check.sh` — you do **not** need to cut a crate release.
+
+Flow:
+
+1. Make the change on a branch, land it on `main` via a normal commit.
+2. Bump `dist/plugin/.claude-plugin/plugin.json#version` *and* the
+   matching entry in `.claude-plugin/marketplace.json` to the next
+   patch (e.g. `0.2.2` → `0.2.3`) even though `Cargo.toml` is still
+   at `0.2.2`. This is the one situation where the plugin version
+   runs ahead of the crate.
+3. The next crate release realigns them by bumping `Cargo.toml` to
+   the plugin's version (or higher) in the same release commit.
+
+No tag is required for a plugin-only hotfix. Users on Claude Code
+pick it up via `/plugin update jira-cli`; Codex users via
+`git pull` + `codex` restart.

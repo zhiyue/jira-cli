@@ -35,16 +35,21 @@ For the rare case where an agent really wants structured tool semantics instead 
 ### Homebrew (macOS + Linux)
 
 ```bash
-brew install zhiyue/jira-cli/jira-cli
+brew install zhiyue/tap/jira-cli
 ```
 
-The fully-qualified name `zhiyue/jira-cli/jira-cli` is required — `homebrew-core` already ships a different tool named `jira-cli` (the Go one by ankitpokhrel), so a plain `brew install jira-cli` would fetch that instead. You can also explicitly `brew tap zhiyue/jira-cli` first; the install command stays the same.
+The tap-qualified name is required because `homebrew-core` already ships a different tool named `jira-cli` (the Go one by ankitpokhrel); a plain `brew install jira-cli` would fetch that instead. You can also tap first if you prefer:
+
+```bash
+brew tap zhiyue/tap
+brew install zhiyue/tap/jira-cli
+```
 
 Upgrade / uninstall:
 
 ```bash
-brew upgrade zhiyue/jira-cli/jira-cli
-brew uninstall zhiyue/jira-cli/jira-cli
+brew upgrade zhiyue/tap/jira-cli
+brew uninstall zhiyue/tap/jira-cli
 ```
 
 ### Install script (macOS + Linux)

@@ -6,11 +6,20 @@ pub mod dispatch;
 
 use clap::{Parser, Subcommand};
 
+const VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (target=",
+    env!("JIRA_CLI_TARGET"),
+    ", git=",
+    env!("JIRA_CLI_GIT"),
+    ")"
+);
+
 #[derive(Parser, Debug)]
 #[command(
     name = "jira-cli",
     author,
-    version,
+    version = VERSION,
     about = "Agent-first CLI for legacy Jira Server 8.13.5"
 )]
 pub struct Cli {

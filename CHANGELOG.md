@@ -5,6 +5,15 @@ All notable changes to jira-cli are documented in this file.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-04-18
+
+### Changed
+- `jira-cli --version` now prints target triple and the 12-char git commit
+  used for the build, matching the style of tools like `gitlab`:
+  `jira-cli 0.2.2 (target=aarch64-apple-darwin, git=...)`. Helps triage bug
+  reports by pinning the exact artifact a user is running. The JSON `schema`
+  command and the `User-Agent` header still use the bare semver string.
+
 ## [0.2.1] - 2026-04-18
 
 ### Changed

@@ -15,13 +15,13 @@ jira-cli issue get PROJ-123 \
 - `--fields` is a client-side dot-path projection; nest with `.`, pick
   multiple with commas.
 
-Add `auto_rename_custom_fields = true` to `jira.toml` and rerun — the
+Add `auto_rename_custom_fields = true` to `config.toml` and rerun — the
 output replaces `customfield_10020` with a slug like `story_points`.
 
 ## W2. Triage every open issue assigned to me
 
 ```bash
-# One-time alias in jira.toml:
+# One-time alias in config.toml:
 #   [jql_aliases]
 #   my-open = "assignee = currentUser() AND resolution = Unresolved"
 
@@ -47,7 +47,7 @@ jira-cli issue create \
 
 `--type` and `--summary` are required flags. `--component` is repeatable
 and maps to the `components` Jira field. Other fields use `--set
-KEY=VALUE`, resolved via `[field_aliases]` in `jira.toml` — without
+KEY=VALUE`, resolved via `[field_aliases]` in `config.toml` — without
 aliases use explicit ids like `--set priority.id=2`.
 
 ## W4. Move an issue through a transition

@@ -1,0 +1,10 @@
+{
+  "name": "jira-cli",
+  "version": "0.2.2",
+  "description": "Agent skill for the jira-cli tool — Jira Server 8.13.5 workflows.",
+  "author": {
+    "name": "zhiyue",
+    "url": "https://github.com/zhiyue"
+  },
+  "homepage": "https://github.com/zhiyue/jira-cli"
+}

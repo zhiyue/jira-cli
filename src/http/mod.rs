@@ -207,6 +207,8 @@ mod url_tests {
             field_aliases: Default::default(),
             defaults: Default::default(),
             field_renames: Default::default(),
+            jql_aliases: Default::default(),
+            effective_renames_cache: Default::default(),
         };
         HttpClient::new(&cfg).unwrap()
     }

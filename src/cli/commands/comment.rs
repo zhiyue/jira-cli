@@ -17,15 +17,17 @@ pub fn dispatch<W: Write>(
     match cmd {
         CommentCmd::List { key } => list(out, cfg, client, g, key),
         CommentCmd::Add { key, body } => {
+            let renames = cfg.effective_renames(client)?;
             let mut v = serde_json::json!({"ok": true, "data": comment::add(client, key, body)?});
-            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            crate::output::rename_keys(&mut v, &renames);
             writeln!(out, "{v}")?;
             Ok(())
         }
         CommentCmd::Update { key, id, body } => {
+            let renames = cfg.effective_renames(client)?;
             let mut v =
                 serde_json::json!({"ok": true, "data": comment::update(client, key, id, body)?});
-            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            crate::output::rename_keys(&mut v, &renames);
             writeln!(out, "{v}")?;
             Ok(())
         }
@@ -46,8 +48,8 @@ fn list<W: Write>(
 ) -> Result<()> {
     let page = comment::list(client, key)?;
     let fields = g.field_list();
-    let opts =
-        g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&cfg.field_renames));
+    let renames = cfg.effective_renames(client)?;
+    let opts = g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
     for c in &page.comments {
         emit_value(out, c.clone(), &opts)?;
     }

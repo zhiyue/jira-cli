@@ -18,11 +18,9 @@ pub fn dispatch<W: Write>(
         WorklogCmd::List { key } => {
             let page = worklog::list(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for w in &page.worklogs {
                 emit_value(out, w.clone(), &opts)?;
             }
@@ -37,8 +35,9 @@ pub fn dispatch<W: Write>(
             started,
             comment,
         } => {
+            let renames = cfg.effective_renames(client)?;
             let mut v = serde_json::json!({"ok": true, "data": worklog::add(client, key, time, started.as_deref(), comment.as_deref())?});
-            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            crate::output::rename_keys(&mut v, &renames);
             writeln!(out, "{v}")?;
             Ok(())
         }

@@ -27,11 +27,9 @@ pub fn dispatch<W: Write>(
                 .unwrap_or_default();
             let page = agile::list_sprints(client, *board, &states)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for s in &page.values {
                 emit_value(out, s.clone(), &opts)?;
             }
@@ -43,14 +41,11 @@ pub fn dispatch<W: Write>(
         SprintCmd::Get { id } => {
             let v = agile::get_sprint(client, *id)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
         SprintCmd::Create {
@@ -60,6 +55,7 @@ pub fn dispatch<W: Write>(
             end,
             goal,
         } => {
+            let renames = cfg.effective_renames(client)?;
             let mut v = serde_json::json!({"ok": true, "data": agile::create_sprint(
                 client,
                 *board,
@@ -68,7 +64,7 @@ pub fn dispatch<W: Write>(
                 end.as_deref(),
                 goal.as_deref(),
             )?});
-            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            crate::output::rename_keys(&mut v, &renames);
             writeln!(out, "{v}")?;
             Ok(())
         }
@@ -96,8 +92,9 @@ pub fn dispatch<W: Write>(
             if let Some(g) = goal {
                 body.insert("goal".into(), serde_json::json!(g));
             }
+            let renames = cfg.effective_renames(client)?;
             let mut v = serde_json::json!({"ok": true, "data": agile::update_sprint(client, *id, &serde_json::Value::Object(body))?});
-            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            crate::output::rename_keys(&mut v, &renames);
             writeln!(out, "{v}")?;
             Ok(())
         }
@@ -114,14 +111,11 @@ pub fn dispatch<W: Write>(
         SprintCmd::Issues { id } => {
             let v = agile::sprint_issues(client, *id)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
         SprintCmd::Move { id, keys } => {

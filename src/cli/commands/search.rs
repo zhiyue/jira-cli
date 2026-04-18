@@ -24,8 +24,8 @@ pub fn run<W: Write>(
         page_size: args.page_size,
     };
     let fields = g.field_list();
-    let opts =
-        g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&cfg.field_renames));
+    let renames = cfg.effective_renames(client)?;
+    let opts = g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
 
     let mut iter = search::iter(client, params);
     let mut count = 0u64;

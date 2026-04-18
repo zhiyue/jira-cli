@@ -18,14 +18,11 @@ pub fn dispatch<W: Write>(
         WatchersCmd::List { key } => {
             let v = watchers::list(client, key)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
         WatchersCmd::Add { key, user } => {

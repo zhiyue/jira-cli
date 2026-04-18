@@ -18,11 +18,9 @@ pub fn dispatch<W: Write>(
         LinkCmd::List { key } => {
             let items = link::list_for_issue(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for l in &items {
                 emit_value(out, l.clone(), &opts)?;
             }

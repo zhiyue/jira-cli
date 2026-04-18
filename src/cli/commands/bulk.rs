@@ -170,7 +170,8 @@ where
         drop(tx);
     });
 
-    let renames = &cfg.field_renames;
+    let computed_renames = cfg.effective_renames(client)?;
+    let renames = &computed_renames;
     let mut ok = 0usize;
     let mut failed = 0usize;
     for (_line, result) in rx {

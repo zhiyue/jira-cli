@@ -18,11 +18,9 @@ pub fn dispatch<W: Write>(
         ProjectCmd::List => {
             let items = project::list(client)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for p in &items {
                 emit_value(out, p.clone(), &opts)?;
             }
@@ -31,27 +29,21 @@ pub fn dispatch<W: Write>(
         ProjectCmd::Get { key } => {
             let v = project::get(client, key)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
         ProjectCmd::Statuses { key } => {
             let v = project::statuses(client, key)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
     }

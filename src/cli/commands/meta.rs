@@ -17,10 +17,11 @@ pub fn ping<W: Write>(
 ) -> Result<()> {
     let value = meta::server_info(client)?;
     let fields = g.field_list();
+    let renames = cfg.effective_renames(client)?;
     emit_value(
         out,
         value,
-        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
     )
 }
 
@@ -32,10 +33,11 @@ pub fn whoami<W: Write>(
 ) -> Result<()> {
     let value = meta::myself(client)?;
     let fields = g.field_list();
+    let renames = cfg.effective_renames(client)?;
     emit_value(
         out,
         value,
-        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
     )
 }
 

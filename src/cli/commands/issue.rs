@@ -38,11 +38,9 @@ pub fn dispatch<W: Write>(
         IssueCmd::Transitions(TransitionsCmd::List { key }) => {
             let list = crate::api::transitions::list(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for t in &list.transitions {
                 crate::output::emit_value(out, t.clone(), &opts)?;
             }
@@ -80,10 +78,11 @@ fn get<W: Write>(
     };
     let v = issue::get(client, &args.key, &opts)?;
     let fields = g.field_list();
+    let renames = cfg.effective_renames(client)?;
     emit_value(
         out,
         v,
-        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
     )
 }
 
@@ -113,11 +112,12 @@ fn create<W: Write>(
     }
     let body = serde_json::json!({ "fields": fields });
     let v = issue::create(client, &body)?;
-    let fields = g.field_list();
+    let out_fields = g.field_list();
+    let renames = cfg.effective_renames(client)?;
     emit_value(
         out,
         serde_json::json!({"ok": true, "data": v}),
-        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
+        &g.output_options_with_renames(Format::Json, out_fields.as_deref(), Some(&renames)),
     )
 }
 

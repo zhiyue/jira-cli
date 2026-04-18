@@ -18,24 +18,19 @@ pub fn dispatch<W: Write>(
         UserCmd::Get { username } => {
             let v = user::get(client, username)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
         UserCmd::Search { query } => {
             let items = user::search(client, query)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for u in &items {
                 emit_value(out, u.clone(), &opts)?;
             }

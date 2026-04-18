@@ -18,11 +18,9 @@ pub fn dispatch<W: Write>(
         AttachmentCmd::List { key } => {
             let items = attachment::list_for_issue(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for a in &items {
                 emit_value(out, a.clone(), &opts)?;
             }
@@ -34,9 +32,10 @@ pub fn dispatch<W: Write>(
                     "upload requires at least one file path".into(),
                 ));
             }
+            let renames = cfg.effective_renames(client)?;
             let mut v =
                 serde_json::json!({"ok": true, "data": attachment::upload(client, key, paths)?});
-            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            crate::output::rename_keys(&mut v, &renames);
             writeln!(out, "{v}")?;
             Ok(())
         }

@@ -1,11 +1,13 @@
 mod common;
 
 use common::{in_blocking, spawn_mock_basic};
+use jira_cli::config::{AuthConfig, JiraConfig};
 use jira_cli::error::{Error, FieldError};
-use jira_cli::field_resolver::FieldResolver;
+use jira_cli::field_resolver::{auto_rename_map, FieldResolver};
 use serde_json::json;
+use url::Url;
 use wiremock::matchers::{method, path};
-use wiremock::{Mock, ResponseTemplate};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn resolve_unique_name() {
@@ -125,6 +127,79 @@ async fn alias_overrides_unique_auto_resolution() {
         let r = FieldResolver::new(&client).with_aliases(aliases);
         let id = r.resolve("Story Points").unwrap();
         assert_eq!(id, "customfield_99999");
+    })
+    .await;
+}
+
+// ── auto_rename_map integration tests ────────────────────────────────────────
+
+fn make_test_cfg(server: &MockServer) -> JiraConfig {
+    JiraConfig {
+        base_url: Url::parse(&server.uri()).unwrap(),
+        auth: AuthConfig::Basic {
+            user: "u".into(),
+            password: "p".into(),
+        },
+        timeout_secs: 5,
+        insecure: false,
+        concurrency: 4,
+        field_aliases: Default::default(),
+        defaults: Default::default(),
+        field_renames: Default::default(),
+    }
+}
+
+#[tokio::test]
+async fn auto_rename_excludes_collisions() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/field"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {"id":"customfield_10006","name":"Story Points","custom":true,"clauseNames":[]},
+            {"id":"customfield_11322","name":"Story Points","custom":true,"clauseNames":[]},
+            {"id":"customfield_10000","name":"Epic Link","custom":true,"clauseNames":[]},
+            {"id":"customfield_10800","name":"开发","custom":true,"clauseNames":[]},
+            {"id":"summary","name":"Summary","custom":false,"clauseNames":[]}
+        ])))
+        .mount(&server)
+        .await;
+
+    in_blocking(move || {
+        let map = auto_rename_map(&client).unwrap();
+        // Epic Link: unique → included
+        assert_eq!(map.get("customfield_10000"), Some(&"epic_link".to_string()));
+        // Story Points has 2 candidates → both excluded
+        assert!(!map.contains_key("customfield_10006"));
+        assert!(!map.contains_key("customfield_11322"));
+        // "开发" has empty slug → excluded
+        assert!(!map.contains_key("customfield_10800"));
+        // Non-custom fields never included
+        assert!(!map.contains_key("summary"));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn effective_renames_merges_manual_over_auto() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/field"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {"id":"customfield_10006","name":"Story Points","custom":true,"clauseNames":[]}
+        ])))
+        .mount(&server)
+        .await;
+
+    // Emulate config where auto is on AND there's a manual override
+    let mut cfg = make_test_cfg(&server);
+    cfg.defaults.auto_rename_custom_fields = true;
+    cfg.field_renames
+        .insert("customfield_10006".into(), "points".into());
+
+    in_blocking(move || {
+        let map = cfg.effective_renames(&client).unwrap();
+        // Manual wins over auto-generated "story_points"
+        assert_eq!(map.get("customfield_10006"), Some(&"points".to_string()));
     })
     .await;
 }

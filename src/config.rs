@@ -27,6 +27,11 @@ pub struct Defaults {
     pub search_fields: Vec<String>,
     #[serde(default)]
     pub issue_get_fields: Vec<String>,
+    /// When true, call GET /rest/api/2/field on first output and auto-generate
+    /// a rename map (customfield_XXX → slug) for all custom fields. Manual
+    /// `[field_renames]` entries take precedence over auto-generated ones.
+    #[serde(default)]
+    pub auto_rename_custom_fields: bool,
 }
 
 pub enum AuthConfig {
@@ -228,6 +233,26 @@ impl JiraConfig {
         })
     }
 
+    /// Compute the effective rename map for this invocation. Merges auto-rename
+    /// (when enabled) with manual `[field_renames]`, manual takes precedence.
+    /// Returns Ok(HashMap) — empty map when nothing configured.
+    /// Calling this hits `GET /rest/api/2/field` when `auto_rename_custom_fields`
+    /// is enabled; the cost is only paid once per invocation (caller caches locally).
+    pub fn effective_renames(
+        &self,
+        client: &crate::http::HttpClient,
+    ) -> Result<std::collections::HashMap<String, String>> {
+        if !self.defaults.auto_rename_custom_fields {
+            return Ok(self.field_renames.clone());
+        }
+        let mut map = crate::field_resolver::auto_rename_map(client)?;
+        // Manual overrides: last write wins → manual takes precedence
+        for (k, v) in &self.field_renames {
+            map.insert(k.clone(), v.clone());
+        }
+        Ok(map)
+    }
+
     /// Thin wrapper for backward compat with tests that call from_env.
     pub fn from_env() -> Result<Self> {
         Self::load()
@@ -256,6 +281,7 @@ impl JiraConfig {
             "defaults": {
                 "search_fields": &self.defaults.search_fields,
                 "issue_get_fields": &self.defaults.issue_get_fields,
+                "auto_rename_custom_fields": self.defaults.auto_rename_custom_fields,
             },
             "field_renames": &self.field_renames,
         })

@@ -42,9 +42,9 @@ fn list<W: Write>(
 ) -> Result<()> {
     let items = field::list(client)?;
     let fields = g.field_list();
+    let renames = cfg.effective_renames(client)?;
     // JSONL by default for list-like output.
-    let opts =
-        g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&cfg.field_renames));
+    let opts = g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
     for item in &items {
         let v = serde_json::json!({
             "id": item.id,

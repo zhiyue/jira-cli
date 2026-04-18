@@ -18,11 +18,9 @@ pub fn dispatch<W: Write>(
         BoardCmd::List { r#type, project } => {
             let page = agile::list_boards(client, r#type.as_deref(), project.as_deref())?;
             let fields = g.field_list();
-            let opts = g.output_options_with_renames(
-                Format::Jsonl,
-                fields.as_deref(),
-                Some(&cfg.field_renames),
-            );
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
             for b in &page.values {
                 emit_value(out, b.clone(), &opts)?;
             }
@@ -34,27 +32,21 @@ pub fn dispatch<W: Write>(
         BoardCmd::Get { id } => {
             let v = agile::get_board(client, *id)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
         BoardCmd::Backlog { id } => {
             let v = agile::board_backlog(client, *id)?;
             let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
             emit_value(
                 out,
                 v,
-                &g.output_options_with_renames(
-                    Format::Json,
-                    fields.as_deref(),
-                    Some(&cfg.field_renames),
-                ),
+                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
     }

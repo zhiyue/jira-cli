@@ -14,7 +14,7 @@ FORMULA="dist/homebrew/jira-cli.rb"
 
 fetch_sha() {
     target="$1"
-    url="https://github.com/${REPO}/releases/download/${TAG}/jira-cli-${TAG}-${target}.tar.gz.sha256"
+    url="https://github.com/${REPO}/releases/download/${TAG}/jira-cli-${TAG}-${target}.sha256"
     curl -fsSL "$url" | awk '{print $1}'
 }
 

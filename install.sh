@@ -75,7 +75,7 @@ fi
 BIN_NAME="jira-cli-${VERSION}-${TARGET}"
 TARBALL="${BIN_NAME}.tar.gz"
 TAR_URL="${BASE_URL}/download/${VERSION}/${TARBALL}"
-SHA_URL="${TAR_URL}.sha256"
+SHA_URL="${BASE_URL}/download/${VERSION}/${BIN_NAME}.sha256"
 
 echo "==> Installing jira-cli $VERSION ($TARGET) to $INSTALL_DIR"
 

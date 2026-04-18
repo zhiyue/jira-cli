@@ -35,7 +35,7 @@ if (-not $InstallDir) {
 
 $archiveName = "jira-cli-$Version-$target.zip"
 $url = "$BaseUrl/download/$Version/$archiveName"
-$shaUrl = "$url.sha256"
+$shaUrl = "$BaseUrl/download/$Version/jira-cli-$Version-$target.sha256"
 
 Write-Host "==> Installing jira-cli $Version ($target) to $InstallDir"
 

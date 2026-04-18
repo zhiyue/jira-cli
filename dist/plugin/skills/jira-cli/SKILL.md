@@ -95,9 +95,9 @@ jira-cli issue transition PROJ-123 "In Progress"
 ### Bulk operations (parallel fan-out)
 
 ```bash
-# bulk transition — feed a JSONL stream of {"key": "...", "transition": "..."}
+# bulk transition — feed a JSONL stream of {"key": "...", "to": "..."}
 jira-cli search 'project=PROJ AND status=Review' --keys-only \
-  | awk '{printf "{\"key\":\"%s\",\"transition\":\"Done\"}\n",$0}' \
+  | awk '{printf "{\"key\":\"%s\",\"to\":\"Done\"}\n",$0}' \
   | jira-cli bulk transition --file -
 
 # bulk comment — each line: {"key": "...", "body": "..."}

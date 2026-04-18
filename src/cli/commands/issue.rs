@@ -28,17 +28,21 @@ pub fn dispatch<W: Write>(
     cmd: &IssueCmd,
 ) -> Result<()> {
     match cmd {
-        IssueCmd::Get(a) => get(out, client, g, a),
+        IssueCmd::Get(a) => get(out, cfg, client, g, a),
         IssueCmd::Create(a) => create(out, cfg, client, g, a),
         IssueCmd::Update(a) => update(out, cfg, client, g, a),
         IssueCmd::Delete(a) => delete(out, client, a),
         IssueCmd::Assign(a) => assign(out, client, a),
         IssueCmd::BulkCreate(a) => bulk_create(out, client, g, a),
-        IssueCmd::Comment(sub) => crate::cli::commands::comment::dispatch(out, client, g, sub),
+        IssueCmd::Comment(sub) => crate::cli::commands::comment::dispatch(out, cfg, client, g, sub),
         IssueCmd::Transitions(TransitionsCmd::List { key }) => {
             let list = crate::api::transitions::list(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options(Format::Jsonl, fields.as_deref());
+            let opts = g.output_options_with_renames(
+                Format::Jsonl,
+                fields.as_deref(),
+                Some(&cfg.field_renames),
+            );
             for t in &list.transitions {
                 crate::output::emit_value(out, t.clone(), &opts)?;
             }
@@ -49,28 +53,38 @@ pub fn dispatch<W: Write>(
             Ok(())
         }
         IssueCmd::Transition(a) => transition(out, cfg, client, g, a),
-        IssueCmd::Link(sub) => crate::cli::commands::link::dispatch(out, client, g, sub),
+        IssueCmd::Link(sub) => crate::cli::commands::link::dispatch(out, cfg, client, g, sub),
         IssueCmd::Attachment(sub) => {
-            crate::cli::commands::attachment::dispatch(out, client, g, sub)
+            crate::cli::commands::attachment::dispatch(out, cfg, client, g, sub)
         }
-        IssueCmd::Worklog(sub) => crate::cli::commands::worklog::dispatch(out, client, g, sub),
-        IssueCmd::Watchers(sub) => crate::cli::commands::watchers::dispatch(out, client, g, sub),
+        IssueCmd::Worklog(sub) => crate::cli::commands::worklog::dispatch(out, cfg, client, g, sub),
+        IssueCmd::Watchers(sub) => {
+            crate::cli::commands::watchers::dispatch(out, cfg, client, g, sub)
+        }
     }
 }
 
 fn get<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     args: &crate::cli::IssueGet,
 ) -> Result<()> {
+    use crate::cli::commands::search::resolve_default_jira_fields;
+    let jira_fields =
+        resolve_default_jira_fields(args.jira_fields.as_deref(), &cfg.defaults.issue_get_fields);
     let opts = issue::GetOpts {
-        fields: split_csv(args.jira_fields.as_deref()),
+        fields: jira_fields,
         expand: split_csv(args.expand.as_deref()),
     };
     let v = issue::get(client, &args.key, &opts)?;
     let fields = g.field_list();
-    emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
+    emit_value(
+        out,
+        v,
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
+    )
 }
 
 fn create<W: Write>(
@@ -103,7 +117,7 @@ fn create<W: Write>(
     emit_value(
         out,
         serde_json::json!({"ok": true, "data": v}),
-        &g.output_options(Format::Json, fields.as_deref()),
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
     )
 }
 

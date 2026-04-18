@@ -1,6 +1,7 @@
 use crate::api::agile;
 use crate::cli::args::GlobalArgs;
 use crate::cli::SprintCmd;
+use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
 use crate::output::{emit_line, emit_value, Format};
@@ -8,6 +9,7 @@ use std::io::Write;
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     cmd: &SprintCmd,
@@ -25,7 +27,11 @@ pub fn dispatch<W: Write>(
                 .unwrap_or_default();
             let page = agile::list_sprints(client, *board, &states)?;
             let fields = g.field_list();
-            let opts = g.output_options(Format::Jsonl, fields.as_deref());
+            let opts = g.output_options_with_renames(
+                Format::Jsonl,
+                fields.as_deref(),
+                Some(&cfg.field_renames),
+            );
             for s in &page.values {
                 emit_value(out, s.clone(), &opts)?;
             }
@@ -37,7 +43,15 @@ pub fn dispatch<W: Write>(
         SprintCmd::Get { id } => {
             let v = agile::get_sprint(client, *id)?;
             let fields = g.field_list();
-            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
+            emit_value(
+                out,
+                v,
+                &g.output_options_with_renames(
+                    Format::Json,
+                    fields.as_deref(),
+                    Some(&cfg.field_renames),
+                ),
+            )
         }
         SprintCmd::Create {
             board,
@@ -46,15 +60,16 @@ pub fn dispatch<W: Write>(
             end,
             goal,
         } => {
-            let v = agile::create_sprint(
+            let mut v = serde_json::json!({"ok": true, "data": agile::create_sprint(
                 client,
                 *board,
                 name,
                 start.as_deref(),
                 end.as_deref(),
                 goal.as_deref(),
-            )?;
-            writeln!(out, "{}", serde_json::json!({"ok": true, "data": v}))?;
+            )?});
+            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            writeln!(out, "{v}")?;
             Ok(())
         }
         SprintCmd::Update {
@@ -81,8 +96,9 @@ pub fn dispatch<W: Write>(
             if let Some(g) = goal {
                 body.insert("goal".into(), serde_json::json!(g));
             }
-            let v = agile::update_sprint(client, *id, &serde_json::Value::Object(body))?;
-            writeln!(out, "{}", serde_json::json!({"ok": true, "data": v}))?;
+            let mut v = serde_json::json!({"ok": true, "data": agile::update_sprint(client, *id, &serde_json::Value::Object(body))?});
+            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            writeln!(out, "{v}")?;
             Ok(())
         }
         SprintCmd::Delete { id, yes } => {
@@ -98,7 +114,15 @@ pub fn dispatch<W: Write>(
         SprintCmd::Issues { id } => {
             let v = agile::sprint_issues(client, *id)?;
             let fields = g.field_list();
-            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
+            emit_value(
+                out,
+                v,
+                &g.output_options_with_renames(
+                    Format::Json,
+                    fields.as_deref(),
+                    Some(&cfg.field_renames),
+                ),
+            )
         }
         SprintCmd::Move { id, keys } => {
             agile::move_issues_to_sprint(client, *id, keys)?;

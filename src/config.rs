@@ -14,6 +14,19 @@ pub struct JiraConfig {
     pub concurrency: usize,
     /// Display-name → field-id aliases loaded from [field_aliases] in config file.
     pub field_aliases: std::collections::HashMap<String, String>,
+    /// Per-command default `jira-fields` lists loaded from [defaults] in config file.
+    pub defaults: Defaults,
+    /// customfield_* → friendly-name renames applied to all API responses.
+    pub field_renames: std::collections::HashMap<String, String>,
+}
+
+/// Default `jira-fields` lists for specific commands.
+#[derive(Debug, Default, Clone, serde::Deserialize)]
+pub struct Defaults {
+    #[serde(default)]
+    pub search_fields: Vec<String>,
+    #[serde(default)]
+    pub issue_get_fields: Vec<String>,
 }
 
 pub enum AuthConfig {
@@ -35,6 +48,12 @@ pub struct ConfigFile {
     /// Display-name → field-id aliases (e.g. "Story Points" = "customfield_10006").
     #[serde(default)]
     pub field_aliases: std::collections::HashMap<String, String>,
+    /// Per-command default `jira-fields` lists.
+    #[serde(default)]
+    pub defaults: Defaults,
+    /// customfield_* → friendly-name renames applied to all API responses.
+    #[serde(default)]
+    pub field_renames: std::collections::HashMap<String, String>,
 }
 
 impl ConfigFile {
@@ -194,6 +213,8 @@ impl JiraConfig {
             .clamp(1, 16);
 
         let field_aliases = file.field_aliases.clone();
+        let defaults = file.defaults.clone();
+        let field_renames = file.field_renames.clone();
 
         Ok(Self {
             base_url,
@@ -202,6 +223,8 @@ impl JiraConfig {
             insecure,
             concurrency,
             field_aliases,
+            defaults,
+            field_renames,
         })
     }
 
@@ -230,6 +253,11 @@ impl JiraConfig {
             "insecure": self.insecure,
             "concurrency": self.concurrency,
             "field_aliases": &self.field_aliases,
+            "defaults": {
+                "search_fields": &self.defaults.search_fields,
+                "issue_get_fields": &self.defaults.issue_get_fields,
+            },
+            "field_renames": &self.field_renames,
         })
     }
 }
@@ -255,6 +283,8 @@ impl std::fmt::Debug for JiraConfig {
             .field("insecure", &self.insecure)
             .field("concurrency", &self.concurrency)
             .field("field_aliases", &self.field_aliases)
+            .field("defaults", &self.defaults)
+            .field("field_renames", &self.field_renames)
             .finish()
     }
 }
@@ -462,6 +492,54 @@ password = "p"
         assert_eq!(
             cfg.field_aliases.get("Story Points"),
             Some(&"customfield_10006".to_string())
+        );
+    }
+
+    #[test]
+    fn file_carries_defaults_and_renames() {
+        let raw = r#"
+url = "https://j.example"
+user = "alice"
+password = "p"
+
+[defaults]
+search_fields = ["summary", "status"]
+issue_get_fields = ["summary", "description"]
+
+[field_renames]
+customfield_10006 = "story_points"
+"#;
+        let cfg: ConfigFile = toml::from_str(raw).unwrap();
+        assert_eq!(cfg.defaults.search_fields, vec!["summary", "status"]);
+        assert_eq!(
+            cfg.defaults.issue_get_fields,
+            vec!["summary", "description"]
+        );
+        assert_eq!(
+            cfg.field_renames.get("customfield_10006"),
+            Some(&"story_points".to_string())
+        );
+    }
+
+    #[test]
+    fn jira_config_merges_defaults_and_renames_from_file() {
+        let raw = r#"
+url = "https://j.example"
+user = "alice"
+password = "p"
+
+[defaults]
+search_fields = ["summary", "status"]
+
+[field_renames]
+customfield_10006 = "story_points"
+"#;
+        let file: ConfigFile = toml::from_str(raw).unwrap();
+        let cfg = JiraConfig::merge(&HashMap::new(), &file).unwrap();
+        assert_eq!(cfg.defaults.search_fields, vec!["summary", "status"]);
+        assert_eq!(
+            cfg.field_renames.get("customfield_10006"),
+            Some(&"story_points".to_string())
         );
     }
 }

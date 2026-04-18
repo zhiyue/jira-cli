@@ -9,23 +9,33 @@ use crate::http::HttpClient;
 use crate::output::{emit_value, Format};
 use std::io::Write;
 
-pub fn ping<W: Write>(out: &mut W, client: &HttpClient, g: &GlobalArgs) -> Result<()> {
+pub fn ping<W: Write>(
+    out: &mut W,
+    cfg: &JiraConfig,
+    client: &HttpClient,
+    g: &GlobalArgs,
+) -> Result<()> {
     let value = meta::server_info(client)?;
     let fields = g.field_list();
     emit_value(
         out,
         value,
-        &g.output_options(Format::Json, fields.as_deref()),
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
     )
 }
 
-pub fn whoami<W: Write>(out: &mut W, client: &HttpClient, g: &GlobalArgs) -> Result<()> {
+pub fn whoami<W: Write>(
+    out: &mut W,
+    cfg: &JiraConfig,
+    client: &HttpClient,
+    g: &GlobalArgs,
+) -> Result<()> {
     let value = meta::myself(client)?;
     let fields = g.field_list();
     emit_value(
         out,
         value,
-        &g.output_options(Format::Json, fields.as_deref()),
+        &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&cfg.field_renames)),
     )
 }
 
@@ -185,6 +195,8 @@ pub fn session_new<W: Write>(out: &mut W, cfg: &JiraConfig) -> Result<()> {
         insecure: cfg.insecure,
         concurrency: cfg.concurrency,
         field_aliases: Default::default(),
+        defaults: Default::default(),
+        field_renames: Default::default(),
     };
     let client = crate::http::HttpClient::new(&tmp_cfg)?;
     let info = session::new(&client, &user, &pass)?;

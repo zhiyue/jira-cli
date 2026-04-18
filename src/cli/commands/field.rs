@@ -29,16 +29,22 @@ pub fn dispatch<W: Write>(
     cmd: &FieldCmd,
 ) -> Result<()> {
     match cmd {
-        FieldCmd::List => list(out, client, g),
+        FieldCmd::List => list(out, cfg, client, g),
         FieldCmd::Resolve(a) => resolve(out, cfg, client, g, &a.name),
     }
 }
 
-fn list<W: Write>(out: &mut W, client: &HttpClient, g: &GlobalArgs) -> Result<()> {
+fn list<W: Write>(
+    out: &mut W,
+    cfg: &JiraConfig,
+    client: &HttpClient,
+    g: &GlobalArgs,
+) -> Result<()> {
     let items = field::list(client)?;
     let fields = g.field_list();
     // JSONL by default for list-like output.
-    let opts = g.output_options(Format::Jsonl, fields.as_deref());
+    let opts =
+        g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&cfg.field_renames));
     for item in &items {
         let v = serde_json::json!({
             "id": item.id,
@@ -78,6 +84,7 @@ fn resolve<W: Write>(
             format: Format::Json,
             pretty: false,
             fields: None,
+            renames: None,
         },
     )
 }

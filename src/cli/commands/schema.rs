@@ -18,6 +18,7 @@ pub fn run<W: Write>(out: &mut W, args: &SchemaArgs, pretty: bool) -> Result<()>
             format: Format::Json,
             pretty,
             fields: None,
+            renames: None,
         },
     )
 }

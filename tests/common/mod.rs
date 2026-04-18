@@ -25,6 +25,8 @@ pub async fn spawn_mock_basic() -> (MockServer, HttpClient) {
             insecure: false,
             concurrency: 4,
             field_aliases: Default::default(),
+            defaults: Default::default(),
+            field_renames: Default::default(),
         };
         HttpClient::new(&cfg).expect("build HttpClient")
     })
@@ -47,6 +49,8 @@ pub async fn spawn_mock_cookie() -> (MockServer, HttpClient) {
             insecure: false,
             concurrency: 4,
             field_aliases: Default::default(),
+            defaults: Default::default(),
+            field_renames: Default::default(),
         };
         HttpClient::new(&cfg).expect("build HttpClient")
     })

@@ -1,6 +1,7 @@
 use crate::api::watchers;
 use crate::cli::args::GlobalArgs;
 use crate::cli::WatchersCmd;
+use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
 use crate::output::{emit_value, Format};
@@ -8,6 +9,7 @@ use std::io::Write;
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     cmd: &WatchersCmd,
@@ -16,7 +18,15 @@ pub fn dispatch<W: Write>(
         WatchersCmd::List { key } => {
             let v = watchers::list(client, key)?;
             let fields = g.field_list();
-            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
+            emit_value(
+                out,
+                v,
+                &g.output_options_with_renames(
+                    Format::Json,
+                    fields.as_deref(),
+                    Some(&cfg.field_renames),
+                ),
+            )
         }
         WatchersCmd::Add { key, user } => {
             watchers::add(client, key, user)?;

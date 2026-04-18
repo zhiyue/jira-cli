@@ -1,6 +1,7 @@
 use crate::api::attachment;
 use crate::cli::args::GlobalArgs;
 use crate::cli::AttachmentCmd;
+use crate::config::JiraConfig;
 use crate::error::{Error, Result};
 use crate::http::HttpClient;
 use crate::output::{emit_line, emit_value, Format};
@@ -8,6 +9,7 @@ use std::io::Write;
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     cmd: &AttachmentCmd,
@@ -16,7 +18,11 @@ pub fn dispatch<W: Write>(
         AttachmentCmd::List { key } => {
             let items = attachment::list_for_issue(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options(Format::Jsonl, fields.as_deref());
+            let opts = g.output_options_with_renames(
+                Format::Jsonl,
+                fields.as_deref(),
+                Some(&cfg.field_renames),
+            );
             for a in &items {
                 emit_value(out, a.clone(), &opts)?;
             }
@@ -28,8 +34,10 @@ pub fn dispatch<W: Write>(
                     "upload requires at least one file path".into(),
                 ));
             }
-            let v = attachment::upload(client, key, paths)?;
-            writeln!(out, "{}", serde_json::json!({"ok": true, "data": v}))?;
+            let mut v =
+                serde_json::json!({"ok": true, "data": attachment::upload(client, key, paths)?});
+            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            writeln!(out, "{v}")?;
             Ok(())
         }
         AttachmentCmd::Download {

@@ -86,6 +86,21 @@ impl GlobalArgs {
             format: self.output.map(Into::into).unwrap_or(default_format),
             pretty: self.pretty,
             fields,
+            renames: None,
+        }
+    }
+
+    pub fn output_options_with_renames<'a>(
+        &self,
+        default_format: Format,
+        fields: Option<&'a [String]>,
+        renames: Option<&'a std::collections::HashMap<String, String>>,
+    ) -> OutputOptions<'a> {
+        OutputOptions {
+            format: self.output.map(Into::into).unwrap_or(default_format),
+            pretty: self.pretty,
+            fields,
+            renames,
         }
     }
 }

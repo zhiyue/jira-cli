@@ -205,6 +205,8 @@ mod url_tests {
             insecure: false,
             concurrency: 4,
             field_aliases: Default::default(),
+            defaults: Default::default(),
+            field_renames: Default::default(),
         };
         HttpClient::new(&cfg).unwrap()
     }

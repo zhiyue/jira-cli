@@ -17,6 +17,8 @@ pub struct OutputOptions<'a> {
     pub format: Format,
     pub pretty: bool,
     pub fields: Option<&'a [String]>,
+    /// If set, keys in the JSON response are renamed before field projection.
+    pub renames: Option<&'a std::collections::HashMap<String, String>>,
 }
 
 pub fn parse_field_list(raw: &str) -> Vec<String> {
@@ -88,8 +90,41 @@ pub fn emit_line<W: Write, T: Serialize>(w: &mut W, value: &T) -> Result<()> {
     Ok(())
 }
 
-/// High-level helper for single-object emissions. Applies field projection.
-pub fn emit_value<W: Write>(w: &mut W, value: Value, opts: &OutputOptions<'_>) -> Result<()> {
+/// Recursively rewrite JSON object keys using the rename map. Applied in-place on `Value`
+/// before emit. Nested objects and arrays are traversed. Non-matching keys are left alone.
+pub fn rename_keys(value: &mut Value, renames: &std::collections::HashMap<String, String>) {
+    if renames.is_empty() {
+        return;
+    }
+    match value {
+        Value::Object(map) => {
+            // Collect keys to rename first to avoid borrow conflicts.
+            let keys: Vec<String> = map.keys().cloned().collect();
+            for k in keys {
+                if let Some(new_key) = renames.get(&k) {
+                    let v = map.remove(&k).unwrap();
+                    map.insert(new_key.clone(), v);
+                }
+            }
+            // Recurse into children AFTER renaming this level's keys.
+            for v in map.values_mut() {
+                rename_keys(v, renames);
+            }
+        }
+        Value::Array(items) => {
+            for item in items.iter_mut() {
+                rename_keys(item, renames);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// High-level helper for single-object emissions. Applies renames then field projection.
+pub fn emit_value<W: Write>(w: &mut W, mut value: Value, opts: &OutputOptions<'_>) -> Result<()> {
+    if let Some(renames) = opts.renames {
+        rename_keys(&mut value, renames);
+    }
     let projected = match opts.fields {
         Some(fs) if !fs.is_empty() => project_fields(&value, fs),
         _ => value,
@@ -104,6 +139,75 @@ pub fn emit_value<W: Write>(w: &mut W, value: Value, opts: &OutputOptions<'_>) -
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn rename_keys_simple() {
+        let mut v = json!({"customfield_10006": 5, "summary": "x"});
+        let mut renames = std::collections::HashMap::new();
+        renames.insert("customfield_10006".into(), "story_points".into());
+        rename_keys(&mut v, &renames);
+        assert_eq!(v["story_points"], 5);
+        assert!(v.get("customfield_10006").is_none());
+        assert_eq!(v["summary"], "x");
+    }
+
+    #[test]
+    fn rename_keys_nested() {
+        let mut v = json!({
+            "key": "MGX-1",
+            "fields": {
+                "customfield_10006": 5,
+                "customfield_11407": {"value": "一般"}
+            }
+        });
+        let mut renames = std::collections::HashMap::new();
+        renames.insert("customfield_10006".into(), "story_points".into());
+        renames.insert("customfield_11407".into(), "bug_severity".into());
+        rename_keys(&mut v, &renames);
+        assert_eq!(v["fields"]["story_points"], 5);
+        assert_eq!(v["fields"]["bug_severity"]["value"], "一般");
+    }
+
+    #[test]
+    fn rename_keys_empty_map_noop() {
+        let mut v = json!({"customfield_10006": 5});
+        let renames = std::collections::HashMap::new();
+        rename_keys(&mut v, &renames);
+        assert_eq!(v["customfield_10006"], 5);
+    }
+
+    #[test]
+    fn rename_keys_array_walk() {
+        let mut v = json!([
+            {"customfield_10006": 1},
+            {"customfield_10006": 2}
+        ]);
+        let mut renames = std::collections::HashMap::new();
+        renames.insert("customfield_10006".into(), "story_points".into());
+        rename_keys(&mut v, &renames);
+        assert_eq!(v[0]["story_points"], 1);
+        assert_eq!(v[1]["story_points"], 2);
+    }
+
+    #[test]
+    fn emit_value_applies_renames_before_projection() {
+        let v = json!({"customfield_10006": 5, "summary": "hello"});
+        let mut renames = std::collections::HashMap::new();
+        renames.insert("customfield_10006".into(), "story_points".into());
+        let mut buf = Vec::new();
+        let fields = vec!["story_points".to_string()];
+        let opts = OutputOptions {
+            format: Format::Json,
+            pretty: false,
+            fields: Some(&fields),
+            renames: Some(&renames),
+        };
+        emit_value(&mut buf, v, &opts).unwrap();
+        let out: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+        assert_eq!(out["story_points"], 5);
+        assert!(out.get("customfield_10006").is_none());
+        assert!(out.get("summary").is_none()); // projected out
+    }
 
     #[test]
     fn project_flat_field() {

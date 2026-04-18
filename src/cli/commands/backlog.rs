@@ -1,12 +1,14 @@
 use crate::api::agile;
 use crate::cli::args::GlobalArgs;
 use crate::cli::BacklogCmd;
+use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
 use std::io::Write;
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    _cfg: &JiraConfig,
     client: &HttpClient,
     _g: &GlobalArgs,
     cmd: &BacklogCmd,

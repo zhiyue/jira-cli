@@ -170,11 +170,13 @@ where
         drop(tx);
     });
 
+    let renames = &cfg.field_renames;
     let mut ok = 0usize;
     let mut failed = 0usize;
     for (_line, result) in rx {
         match result {
-            Ok(v) => {
+            Ok(mut v) => {
+                crate::output::rename_keys(&mut v, renames);
                 crate::output::emit_line(out, &v)?;
                 ok += 1;
             }

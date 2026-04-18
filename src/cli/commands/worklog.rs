@@ -1,6 +1,7 @@
 use crate::api::worklog;
 use crate::cli::args::GlobalArgs;
 use crate::cli::WorklogCmd;
+use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
 use crate::output::{emit_line, emit_value, Format};
@@ -8,6 +9,7 @@ use std::io::Write;
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     cmd: &WorklogCmd,
@@ -16,7 +18,11 @@ pub fn dispatch<W: Write>(
         WorklogCmd::List { key } => {
             let page = worklog::list(client, key)?;
             let fields = g.field_list();
-            let opts = g.output_options(Format::Jsonl, fields.as_deref());
+            let opts = g.output_options_with_renames(
+                Format::Jsonl,
+                fields.as_deref(),
+                Some(&cfg.field_renames),
+            );
             for w in &page.worklogs {
                 emit_value(out, w.clone(), &opts)?;
             }
@@ -31,8 +37,9 @@ pub fn dispatch<W: Write>(
             started,
             comment,
         } => {
-            let v = worklog::add(client, key, time, started.as_deref(), comment.as_deref())?;
-            writeln!(out, "{}", serde_json::json!({"ok": true, "data": v}))?;
+            let mut v = serde_json::json!({"ok": true, "data": worklog::add(client, key, time, started.as_deref(), comment.as_deref())?});
+            crate::output::rename_keys(&mut v, &cfg.field_renames);
+            writeln!(out, "{v}")?;
             Ok(())
         }
         WorklogCmd::Delete { key, id } => {

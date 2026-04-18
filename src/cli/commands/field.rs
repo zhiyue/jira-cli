@@ -3,21 +3,34 @@
 use crate::api::field;
 use crate::cli::args::GlobalArgs;
 use crate::cli::FieldCmd;
+use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::field_resolver::FieldResolver;
 use crate::http::HttpClient;
 use crate::output::{emit_line, emit_value, Format};
+use std::collections::HashMap;
 use std::io::Write;
+
+/// Merge config-file aliases with CLI flag aliases. CLI wins per key.
+// requires cfg because it constructs FieldResolver
+fn merged_field_aliases(cfg: &JiraConfig, g: &GlobalArgs) -> Result<HashMap<String, String>> {
+    let mut map = cfg.field_aliases.clone();
+    for (k, v) in g.parse_field_aliases()? {
+        map.insert(k, v);
+    }
+    Ok(map)
+}
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     cmd: &FieldCmd,
 ) -> Result<()> {
     match cmd {
         FieldCmd::List => list(out, client, g),
-        FieldCmd::Resolve(a) => resolve(out, client, &a.name),
+        FieldCmd::Resolve(a) => resolve(out, cfg, client, g, &a.name),
     }
 }
 
@@ -39,8 +52,15 @@ fn list<W: Write>(out: &mut W, client: &HttpClient, g: &GlobalArgs) -> Result<()
     emit_line(out, &serde_json::json!({"summary": {"count": items.len()}}))
 }
 
-fn resolve<W: Write>(out: &mut W, client: &HttpClient, name: &str) -> Result<()> {
-    let r = FieldResolver::new(client);
+fn resolve<W: Write>(
+    out: &mut W,
+    cfg: &JiraConfig,
+    client: &HttpClient,
+    g: &GlobalArgs,
+    name: &str,
+) -> Result<()> {
+    let aliases = merged_field_aliases(cfg, g)?;
+    let r = FieldResolver::new(client).with_aliases(aliases);
     let id = r.resolve(name)?;
     let meta = r.metadata(&id)?;
     emit_value(

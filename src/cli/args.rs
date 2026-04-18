@@ -29,6 +29,11 @@ pub struct GlobalArgs {
     /// Skip TLS verification. NOT RECOMMENDED.
     #[arg(long, global = true)]
     pub insecure: bool,
+
+    /// Field alias in the form NAME=ID, e.g. "Story Points=customfield_10006".
+    /// Repeatable. Overrides any [field_aliases] entry in the config file.
+    #[arg(long = "field-alias", value_name = "NAME=ID", global = true)]
+    pub field_alias: Vec<String>,
 }
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +54,27 @@ impl From<FormatArg> for Format {
 impl GlobalArgs {
     pub fn field_list(&self) -> Option<Vec<String>> {
         self.fields.as_deref().map(parse_field_list)
+    }
+
+    /// Parse `--field-alias NAME=ID` args into a HashMap. Errors on malformed entries.
+    pub fn parse_field_aliases(
+        &self,
+    ) -> crate::error::Result<std::collections::HashMap<String, String>> {
+        let mut out = std::collections::HashMap::new();
+        for raw in &self.field_alias {
+            let (k, v) = raw.split_once('=').ok_or_else(|| {
+                crate::error::Error::Usage(format!("--field-alias expects NAME=ID, got: {raw}"))
+            })?;
+            let k = k.trim();
+            let v = v.trim();
+            if k.is_empty() || v.is_empty() {
+                return Err(crate::error::Error::Usage(
+                    "--field-alias NAME and ID must both be non-empty".into(),
+                ));
+            }
+            out.insert(k.to_string(), v.to_string());
+        }
+        Ok(out)
     }
 
     pub fn output_options<'a>(
@@ -162,5 +188,51 @@ mod tests_set {
         let s = SetArg::parse("URL=https://foo.example?a=b").unwrap();
         assert_eq!(s.key, "URL");
         assert_eq!(s.raw, RawValue::Scalar("https://foo.example?a=b".into()));
+    }
+}
+
+#[cfg(test)]
+mod tests_field_alias {
+    use super::*;
+
+    fn make_args(aliases: Vec<String>) -> GlobalArgs {
+        GlobalArgs {
+            verbose: 0,
+            output: None,
+            pretty: false,
+            fields: None,
+            timeout: None,
+            insecure: false,
+            field_alias: aliases,
+        }
+    }
+
+    #[test]
+    fn parses_valid_pairs() {
+        let args = make_args(vec![
+            "Story Points=customfield_10006".into(),
+            " Epic Link = customfield_10000 ".into(),
+        ]);
+        let map = args.parse_field_aliases().unwrap();
+        assert_eq!(map["Story Points"], "customfield_10006");
+        assert_eq!(map["Epic Link"], "customfield_10000");
+    }
+
+    #[test]
+    fn missing_equals_errors() {
+        let args = make_args(vec!["bad".into()]);
+        assert!(args.parse_field_aliases().is_err());
+    }
+
+    #[test]
+    fn empty_name_errors() {
+        let args = make_args(vec!["=x".into()]);
+        assert!(args.parse_field_aliases().is_err());
+    }
+
+    #[test]
+    fn empty_id_errors() {
+        let args = make_args(vec!["Name=".into()]);
+        assert!(args.parse_field_aliases().is_err());
     }
 }

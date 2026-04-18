@@ -204,6 +204,7 @@ mod url_tests {
             timeout_secs: 5,
             insecure: false,
             concurrency: 4,
+            field_aliases: Default::default(),
         };
         HttpClient::new(&cfg).unwrap()
     }

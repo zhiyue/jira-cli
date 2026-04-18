@@ -81,3 +81,50 @@ async fn unknown_name_errors() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn alias_takes_precedence_over_ambiguous_auto_resolution() {
+    let (server, client) = spawn_mock_basic().await;
+    // Two customfields share the same name — without an alias this would be ambiguous.
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/field"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {"id":"customfield_11322","name":"Story Points","custom":true,"clauseNames":[]},
+            {"id":"customfield_10006","name":"Story Points","custom":true,"clauseNames":[]}
+        ])))
+        .mount(&server)
+        .await;
+
+    in_blocking(move || {
+        use std::collections::HashMap;
+        let mut aliases = HashMap::new();
+        aliases.insert("Story Points".into(), "customfield_10006".into());
+        let r = FieldResolver::new(&client).with_aliases(aliases);
+        let id = r.resolve("Story Points").unwrap();
+        assert_eq!(id, "customfield_10006");
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn alias_overrides_unique_auto_resolution() {
+    // Even when the name is unique in /field, alias still wins.
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/field"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {"id":"customfield_10020","name":"Story Points","custom":true,"clauseNames":[]}
+        ])))
+        .mount(&server)
+        .await;
+
+    in_blocking(move || {
+        use std::collections::HashMap;
+        let mut aliases = HashMap::new();
+        aliases.insert("Story Points".into(), "customfield_99999".into());
+        let r = FieldResolver::new(&client).with_aliases(aliases);
+        let id = r.resolve("Story Points").unwrap();
+        assert_eq!(id, "customfield_99999");
+    })
+    .await;
+}

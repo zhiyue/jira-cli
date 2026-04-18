@@ -10,6 +10,7 @@ use std::collections::HashMap;
 pub struct FieldResolver<'a> {
     client: &'a HttpClient,
     cache: OnceCell<Index>,
+    aliases: HashMap<String, String>,
 }
 
 struct Index {
@@ -22,7 +23,15 @@ impl<'a> FieldResolver<'a> {
         Self {
             client,
             cache: OnceCell::new(),
+            aliases: HashMap::new(),
         }
+    }
+
+    /// Builder: attach an alias map (display name → field id). Takes precedence
+    /// over auto-discovery lookups.
+    pub fn with_aliases(mut self, aliases: HashMap<String, String>) -> Self {
+        self.aliases = aliases;
+        self
     }
 
     fn index(&self) -> Result<&Index> {
@@ -45,10 +54,15 @@ impl<'a> FieldResolver<'a> {
 
     /// Given a user-supplied key (display name or raw id), return the id.
     pub fn resolve(&self, key: &str) -> Result<String> {
-        // Raw ids: `summary`, `customfield_10020`, etc. pass through.
+        // 1. Raw ids: `customfield_*` pass through unchanged.
         if key.starts_with("customfield_") {
             return Ok(key.to_string());
         }
+        // 2. Alias table takes precedence over auto-discovery.
+        if let Some(aliased) = self.aliases.get(key) {
+            return Ok(aliased.clone());
+        }
+        // 3. Existing auto-discovery logic.
         let idx = self.index()?;
         if idx.by_id.contains_key(key) {
             return Ok(key.to_string());

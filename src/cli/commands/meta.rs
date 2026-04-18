@@ -184,6 +184,7 @@ pub fn session_new<W: Write>(out: &mut W, cfg: &JiraConfig) -> Result<()> {
         timeout_secs: cfg.timeout_secs,
         insecure: cfg.insecure,
         concurrency: cfg.concurrency,
+        field_aliases: Default::default(),
     };
     let client = crate::http::HttpClient::new(&tmp_cfg)?;
     let info = session::new(&client, &user, &pass)?;

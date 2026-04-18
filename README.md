@@ -46,6 +46,19 @@ export JIRA_SESSION_COOKIE=$(
 export JIRA_AUTH_METHOD=cookie
 ```
 
+## Field aliases
+
+Jira often has multiple custom fields with the same display name (e.g. "Story Points"
+across legacy projects). Pin the one you want in `~/.config/jira-cli/config.toml`:
+
+~~~toml
+[field_aliases]
+"Story Points" = "customfield_10006"
+"Epic Link" = "customfield_10000"
+~~~
+
+Or override ad-hoc per command: `--field-alias "Story Points=customfield_11322"` (repeatable).
+
 ## Agent capability discovery
 
 ```bash

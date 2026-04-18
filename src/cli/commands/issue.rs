@@ -3,21 +3,34 @@
 use crate::api::issue;
 use crate::cli::args::GlobalArgs;
 use crate::cli::{IssueCmd, TransitionsCmd};
+use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
 use crate::output::{emit_value, Format};
+use std::collections::HashMap;
 use std::io::Write;
+
+/// Merge config-file aliases with CLI flag aliases. CLI wins per key.
+// requires cfg because it constructs FieldResolver
+fn merged_field_aliases(cfg: &JiraConfig, g: &GlobalArgs) -> Result<HashMap<String, String>> {
+    let mut map = cfg.field_aliases.clone();
+    for (k, v) in g.parse_field_aliases()? {
+        map.insert(k, v);
+    }
+    Ok(map)
+}
 
 pub fn dispatch<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     cmd: &IssueCmd,
 ) -> Result<()> {
     match cmd {
         IssueCmd::Get(a) => get(out, client, g, a),
-        IssueCmd::Create(a) => create(out, client, g, a),
-        IssueCmd::Update(a) => update(out, client, a),
+        IssueCmd::Create(a) => create(out, cfg, client, g, a),
+        IssueCmd::Update(a) => update(out, cfg, client, g, a),
         IssueCmd::Delete(a) => delete(out, client, a),
         IssueCmd::Assign(a) => assign(out, client, a),
         IssueCmd::BulkCreate(a) => bulk_create(out, client, g, a),
@@ -35,7 +48,7 @@ pub fn dispatch<W: Write>(
             )?;
             Ok(())
         }
-        IssueCmd::Transition(a) => transition(out, client, a),
+        IssueCmd::Transition(a) => transition(out, cfg, client, g, a),
         IssueCmd::Link(sub) => crate::cli::commands::link::dispatch(out, client, g, sub),
         IssueCmd::Attachment(sub) => {
             crate::cli::commands::attachment::dispatch(out, client, g, sub)
@@ -62,6 +75,7 @@ fn get<W: Write>(
 
 fn create<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
     g: &GlobalArgs,
     args: &crate::cli::IssueCreate,
@@ -69,7 +83,8 @@ fn create<W: Write>(
     use crate::cli::args::SetArg;
     use crate::field_resolver::FieldResolver;
     let sets = SetArg::parse_many(&args.set)?;
-    let resolver = FieldResolver::new(client);
+    let aliases = merged_field_aliases(cfg, g)?;
+    let resolver = FieldResolver::new(client).with_aliases(aliases);
     let mut fields = serde_json::Map::new();
     fields.insert("project".into(), serde_json::json!({"key": args.project}));
     fields.insert(
@@ -94,13 +109,16 @@ fn create<W: Write>(
 
 fn update<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
+    g: &GlobalArgs,
     args: &crate::cli::IssueUpdate,
 ) -> Result<()> {
     use crate::cli::args::SetArg;
     use crate::field_resolver::FieldResolver;
     let sets = SetArg::parse_many(&args.set)?;
-    let resolver = FieldResolver::new(client);
+    let aliases = merged_field_aliases(cfg, g)?;
+    let resolver = FieldResolver::new(client).with_aliases(aliases);
     let mut fields = serde_json::Map::new();
     for set in &sets {
         let id = resolver.resolve(&set.key)?;
@@ -154,7 +172,9 @@ fn assign<W: Write>(
 
 fn transition<W: Write>(
     out: &mut W,
+    cfg: &JiraConfig,
     client: &HttpClient,
+    g: &GlobalArgs,
     args: &crate::cli::TransitionArgs,
 ) -> Result<()> {
     use crate::api::transitions;
@@ -169,7 +189,8 @@ fn transition<W: Write>(
     let fields = if args.set.is_empty() {
         None
     } else {
-        let resolver = FieldResolver::new(client);
+        let aliases = merged_field_aliases(cfg, g)?;
+        let resolver = FieldResolver::new(client).with_aliases(aliases);
         let mut map = serde_json::Map::new();
         for raw in SetArg::parse_many(&args.set)? {
             let id = resolver.resolve(&raw.key)?;

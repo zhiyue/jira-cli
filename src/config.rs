@@ -12,6 +12,8 @@ pub struct JiraConfig {
     pub timeout_secs: u64,
     pub insecure: bool,
     pub concurrency: usize,
+    /// Display-name → field-id aliases loaded from [field_aliases] in config file.
+    pub field_aliases: std::collections::HashMap<String, String>,
 }
 
 pub enum AuthConfig {
@@ -30,6 +32,9 @@ pub struct ConfigFile {
     pub timeout_secs: Option<u64>,
     pub insecure: Option<bool>,
     pub concurrency: Option<usize>,
+    /// Display-name → field-id aliases (e.g. "Story Points" = "customfield_10006").
+    #[serde(default)]
+    pub field_aliases: std::collections::HashMap<String, String>,
 }
 
 impl ConfigFile {
@@ -188,12 +193,15 @@ impl JiraConfig {
             .unwrap_or(4)
             .clamp(1, 16);
 
+        let field_aliases = file.field_aliases.clone();
+
         Ok(Self {
             base_url,
             auth,
             timeout_secs,
             insecure,
             concurrency,
+            field_aliases,
         })
     }
 
@@ -221,6 +229,7 @@ impl JiraConfig {
             "timeout_secs": self.timeout_secs,
             "insecure": self.insecure,
             "concurrency": self.concurrency,
+            "field_aliases": &self.field_aliases,
         })
     }
 }
@@ -245,6 +254,7 @@ impl std::fmt::Debug for JiraConfig {
             .field("timeout_secs", &self.timeout_secs)
             .field("insecure", &self.insecure)
             .field("concurrency", &self.concurrency)
+            .field("field_aliases", &self.field_aliases)
             .finish()
     }
 }
@@ -413,5 +423,45 @@ concurrency = 8
         assert_eq!(cfg.timeout_secs, Some(60));
         assert_eq!(cfg.insecure, Some(true));
         assert_eq!(cfg.concurrency, Some(8));
+    }
+
+    #[test]
+    fn file_carries_field_aliases() {
+        let raw = r#"
+url = "https://j.example"
+user = "alice"
+password = "p"
+
+[field_aliases]
+"Story Points" = "customfield_10006"
+"Epic Link" = "customfield_10000"
+"#;
+        let cfg: ConfigFile = toml::from_str(raw).unwrap();
+        assert_eq!(
+            cfg.field_aliases.get("Story Points"),
+            Some(&"customfield_10006".to_string())
+        );
+        assert_eq!(
+            cfg.field_aliases.get("Epic Link"),
+            Some(&"customfield_10000".to_string())
+        );
+    }
+
+    #[test]
+    fn jira_config_merges_aliases_from_file() {
+        let file = ConfigFile {
+            url: Some("https://j.example".into()),
+            user: Some("alice".into()),
+            password: Some("p".into()),
+            field_aliases: [("Story Points".to_string(), "customfield_10006".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        };
+        let cfg = JiraConfig::merge(&HashMap::new(), &file).unwrap();
+        assert_eq!(
+            cfg.field_aliases.get("Story Points"),
+            Some(&"customfield_10006".to_string())
+        );
     }
 }

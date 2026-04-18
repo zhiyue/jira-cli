@@ -15,11 +15,13 @@ pub fn dispatch<W: Write>(
     match cmd {
         UserCmd::Get { username } => {
             let v = user::get(client, username)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         UserCmd::Search { query } => {
             let items = user::search(client, query)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for u in &items {
                 emit_value(out, u.clone(), &opts)?;
             }

@@ -15,11 +15,13 @@ pub fn dispatch<W: Write>(
     match cmd {
         EpicCmd::Get { key } => {
             let v = agile::get_epic(client, key)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         EpicCmd::Issues { key } => {
             let v = agile::epic_issues(client, key)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         EpicCmd::AddIssues { key, issues } => {
             agile::epic_add_issues(client, key, issues)?;

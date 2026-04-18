@@ -15,7 +15,8 @@ pub fn dispatch<W: Write>(
     match cmd {
         LinkCmd::List { key } => {
             let items = link::list_for_issue(client, key)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for l in &items {
                 emit_value(out, l.clone(), &opts)?;
             }

@@ -24,7 +24,8 @@ pub fn dispatch<W: Write>(
                 })
                 .unwrap_or_default();
             let page = agile::list_sprints(client, *board, &states)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for s in &page.values {
                 emit_value(out, s.clone(), &opts)?;
             }
@@ -35,7 +36,8 @@ pub fn dispatch<W: Write>(
         }
         SprintCmd::Get { id } => {
             let v = agile::get_sprint(client, *id)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         SprintCmd::Create {
             board,
@@ -95,7 +97,8 @@ pub fn dispatch<W: Write>(
         }
         SprintCmd::Issues { id } => {
             let v = agile::sprint_issues(client, *id)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         SprintCmd::Move { id, keys } => {
             agile::move_issues_to_sprint(client, *id, keys)?;

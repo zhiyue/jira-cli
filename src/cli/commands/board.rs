@@ -15,7 +15,8 @@ pub fn dispatch<W: Write>(
     match cmd {
         BoardCmd::List { r#type, project } => {
             let page = agile::list_boards(client, r#type.as_deref(), project.as_deref())?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for b in &page.values {
                 emit_value(out, b.clone(), &opts)?;
             }
@@ -26,11 +27,13 @@ pub fn dispatch<W: Write>(
         }
         BoardCmd::Get { id } => {
             let v = agile::get_board(client, *id)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         BoardCmd::Backlog { id } => {
             let v = agile::board_backlog(client, *id)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
     }
 }

@@ -15,7 +15,8 @@ pub fn dispatch<W: Write>(
     match cmd {
         AttachmentCmd::List { key } => {
             let items = attachment::list_for_issue(client, key)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for a in &items {
                 emit_value(out, a.clone(), &opts)?;
             }

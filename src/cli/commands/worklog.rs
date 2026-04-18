@@ -15,7 +15,8 @@ pub fn dispatch<W: Write>(
     match cmd {
         WorklogCmd::List { key } => {
             let page = worklog::list(client, key)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for w in &page.worklogs {
                 emit_value(out, w.clone(), &opts)?;
             }

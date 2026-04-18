@@ -15,7 +15,8 @@ pub fn dispatch<W: Write>(
     match cmd {
         WatchersCmd::List { key } => {
             let v = watchers::list(client, key)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         WatchersCmd::Add { key, user } => {
             watchers::add(client, key, user)?;

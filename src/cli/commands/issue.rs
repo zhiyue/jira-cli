@@ -24,7 +24,8 @@ pub fn dispatch<W: Write>(
         IssueCmd::Comment(sub) => crate::cli::commands::comment::dispatch(out, client, g, sub),
         IssueCmd::Transitions(TransitionsCmd::List { key }) => {
             let list = crate::api::transitions::list(client, key)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for t in &list.transitions {
                 crate::output::emit_value(out, t.clone(), &opts)?;
             }
@@ -217,7 +218,8 @@ fn bulk_create<W: Write>(
     let results = issue::bulk_create(client, &inputs)?;
 
     // JSONL: one line per created, one per error, plus summary.
-    let mut opts = g.output_options(Format::Jsonl, None);
+    let fields = g.field_list();
+    let mut opts = g.output_options(Format::Jsonl, fields.as_deref());
     opts.pretty = false;
     for created in &results.created {
         crate::output::emit_line(out, &serde_json::json!({"ok": true, "data": created}))?;

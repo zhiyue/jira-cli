@@ -15,7 +15,8 @@ pub fn dispatch<W: Write>(
     match cmd {
         ProjectCmd::List => {
             let items = project::list(client)?;
-            let opts = g.output_options(Format::Jsonl, None);
+            let fields = g.field_list();
+            let opts = g.output_options(Format::Jsonl, fields.as_deref());
             for p in &items {
                 emit_value(out, p.clone(), &opts)?;
             }
@@ -23,11 +24,13 @@ pub fn dispatch<W: Write>(
         }
         ProjectCmd::Get { key } => {
             let v = project::get(client, key)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
         ProjectCmd::Statuses { key } => {
             let v = project::statuses(client, key)?;
-            emit_value(out, v, &g.output_options(Format::Json, None))
+            let fields = g.field_list();
+            emit_value(out, v, &g.output_options(Format::Json, fields.as_deref()))
         }
     }
 }

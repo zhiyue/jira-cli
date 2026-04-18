@@ -45,7 +45,7 @@ cat > "$FORMULA" <<EOF
 class JiraCli < Formula
   desc "Agent-first CLI for legacy Jira Server 8.13.5"
   homepage "https://github.com/${REPO}"
-  license "MIT OR Apache-2.0"
+  license "Apache-2.0"
   version "${VERSION}"
 
   on_macos do

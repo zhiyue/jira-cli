@@ -270,4 +270,4 @@ Design docs live in `docs/superpowers/`:
 
 ## License
 
-MIT OR Apache-2.0
+[Apache License 2.0](LICENSE)

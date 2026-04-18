@@ -5,6 +5,13 @@ All notable changes to jira-cli are documented in this file.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-18
+
+### Added
+- `default_project` config option (also readable from `JIRA_PROJECT` env). When
+  set, `issue create` no longer requires `--project`; the flag falls back to
+  config / env and errors with a clear hint if neither is provided.
+
 ## [0.1.0] — unreleased
 
 Initial release. Agent-first CLI for legacy Jira Server 8.13.5.

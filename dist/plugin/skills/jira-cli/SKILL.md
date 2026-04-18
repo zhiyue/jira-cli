@@ -89,7 +89,7 @@ jira-cli issue create \
 
 ```bash
 jira-cli issue transitions list PROJ-123
-jira-cli issue transition PROJ-123 "In Progress"
+jira-cli issue transition PROJ-123 --to "In Progress"
 ```
 
 ### Bulk operations (parallel fan-out)

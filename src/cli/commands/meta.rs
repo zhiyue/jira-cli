@@ -46,7 +46,128 @@ pub fn config(
 ) -> Result<()> {
     match cmd {
         ConfigCmd::Show => config_show(out, cfg, g),
+        ConfigCmd::Init(args) => config_init(out, args),
     }
+}
+
+pub fn config_init<W: Write>(out: &mut W, args: &crate::cli::ConfigInitArgs) -> Result<()> {
+    use crate::error::Error;
+
+    let path = match &args.path {
+        Some(p) => p.clone(),
+        None => crate::config::ConfigFile::default_path()?,
+    };
+
+    if path.exists() && !args.force {
+        return Err(Error::Usage(format!(
+            "config file already exists at {}; pass --force to overwrite",
+            path.display()
+        )));
+    }
+
+    let method = args
+        .auth_method
+        .clone()
+        .unwrap_or_else(|| "basic".into())
+        .to_lowercase();
+
+    // Required fields depending on auth method
+    let url = match args.url.clone() {
+        Some(u) => u,
+        None => prompt("JIRA base URL (e.g. https://jira.example.com): ")?,
+    };
+
+    let mut toml_lines: Vec<String> = vec![format!(r#"url = "{}""#, escape_toml(&url))];
+
+    match method.as_str() {
+        "basic" => {
+            let user = match args.user.clone() {
+                Some(u) => u,
+                None => prompt("User: ")?,
+            };
+            let password = match args.password.clone() {
+                Some(p) => p,
+                None => prompt("Password (will be echoed): ")?,
+            };
+            toml_lines.push(format!(r#"user = "{}""#, escape_toml(&user)));
+            toml_lines.push(format!(r#"password = "{}""#, escape_toml(&password)));
+        }
+        "cookie" => {
+            toml_lines.push(r#"auth_method = "cookie""#.to_string());
+            let cookie = match args.session_cookie.clone() {
+                Some(c) => c,
+                None => prompt("Session cookie (e.g. JSESSIONID=abc...): ")?,
+            };
+            toml_lines.push(format!(r#"session_cookie = "{}""#, escape_toml(&cookie)));
+        }
+        other => {
+            return Err(Error::Usage(format!(
+                "auth-method must be 'basic' or 'cookie', got '{other}'"
+            )));
+        }
+    }
+
+    if args.insecure {
+        toml_lines.push("insecure = true".to_string());
+    }
+
+    let content = toml_lines.join("\n") + "\n";
+
+    // Ensure parent directory exists
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // Write with mode 0600 on Unix
+    write_secure(&path, content.as_bytes())?;
+
+    writeln!(
+        out,
+        "{}",
+        serde_json::json!({
+            "ok": true,
+            "path": path.display().to_string(),
+            "mode": "0600"
+        })
+    )?;
+    Ok(())
+}
+
+fn prompt(msg: &str) -> Result<String> {
+    use std::io::{BufRead, Write as _};
+    eprint!("{msg}");
+    std::io::stderr().flush().ok();
+    let mut line = String::new();
+    std::io::stdin()
+        .lock()
+        .read_line(&mut line)
+        .map_err(crate::error::Error::Io)?;
+    Ok(line.trim_end_matches(['\r', '\n']).to_string())
+}
+
+fn escape_toml(s: &str) -> String {
+    // Basic TOML string escape for our limited character set — backslash and double-quote
+    s.replace('\\', r"\\").replace('"', r#"\""#)
+}
+
+#[cfg(unix)]
+fn write_secure(path: &std::path::Path, contents: &[u8]) -> Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?;
+    f.write_all(contents)?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn write_secure(path: &std::path::Path, contents: &[u8]) -> Result<()> {
+    std::fs::write(path, contents)?;
+    Ok(())
 }
 
 pub fn session_new<W: Write>(out: &mut W, cfg: &JiraConfig) -> Result<()> {

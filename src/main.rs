@@ -20,14 +20,23 @@ fn try_main(cli: &Cli) -> jira_cli::Result<()> {
     let stdout = std::io::stdout();
     let mut lock = stdout.lock();
 
-    // Schema command doesn't need config/client
-    if let jira_cli::cli::Command::Schema(a) = &cli.cmd {
-        jira_cli::cli::commands::schema::run(&mut lock, a, cli.global.pretty)?;
-        lock.flush()?;
-        return Ok(());
+    // Commands that don't need config/client
+    use jira_cli::cli::{Command, ConfigCmd};
+    match &cli.cmd {
+        Command::Schema(a) => {
+            jira_cli::cli::commands::schema::run(&mut lock, a, cli.global.pretty)?;
+            lock.flush()?;
+            return Ok(());
+        }
+        Command::Config(ConfigCmd::Init(args)) => {
+            jira_cli::cli::commands::meta::config_init(&mut lock, args)?;
+            lock.flush()?;
+            return Ok(());
+        }
+        _ => {}
     }
 
-    let mut cfg = JiraConfig::from_env()?;
+    let mut cfg = JiraConfig::load()?;
     if let Some(t) = cli.global.timeout {
         cfg.timeout_secs = t;
     }

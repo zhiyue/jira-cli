@@ -83,6 +83,32 @@ pub struct SchemaArgs {
 pub enum ConfigCmd {
     /// Print the parsed configuration
     Show,
+    /// Create ~/.config/jira-cli/config.toml (non-interactively or via prompts)
+    Init(ConfigInitArgs),
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ConfigInitArgs {
+    #[arg(long)]
+    pub url: Option<String>,
+    #[arg(long)]
+    pub user: Option<String>,
+    #[arg(long)]
+    pub password: Option<String>,
+    /// "basic" (default) or "cookie"
+    #[arg(long = "auth-method")]
+    pub auth_method: Option<String>,
+    /// e.g. "JSESSIONID=abc..."
+    #[arg(long = "session-cookie")]
+    pub session_cookie: Option<String>,
+    #[arg(long)]
+    pub insecure: bool,
+    /// Overwrite existing config file without prompting
+    #[arg(long)]
+    pub force: bool,
+    /// Write to a custom path instead of the default
+    #[arg(long)]
+    pub path: Option<std::path::PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]

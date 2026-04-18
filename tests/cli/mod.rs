@@ -8,6 +8,7 @@ pub fn bin() -> Command {
     Command::cargo_bin("jira-cli").expect("binary built")
 }
 
+#[allow(dead_code)]
 pub fn bin_with_env(base: &str) -> Command {
     let mut c = bin();
     c.env_clear()

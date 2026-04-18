@@ -1,5 +1,5 @@
-//! Configuration resolved from environment variables. Stateless, read once
-//! at process startup.
+//! Configuration resolved from environment variables and optional TOML config file.
+//! Precedence: CLI flags (handled in main.rs) > env vars > config file > defaults.
 
 use crate::error::{Error, Result};
 use std::collections::HashMap;
@@ -19,17 +19,103 @@ pub enum AuthConfig {
     Cookie { cookie: String },
 }
 
-impl JiraConfig {
-    pub fn from_env() -> Result<Self> {
-        let map: HashMap<String, String> = std::env::vars().collect();
-        Self::from_map(&map)
+/// TOML config file schema. All fields are optional — missing file is not an error.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct ConfigFile {
+    pub url: Option<String>,
+    pub user: Option<String>,
+    pub password: Option<String>,
+    pub auth_method: Option<String>,
+    pub session_cookie: Option<String>,
+    pub timeout_secs: Option<u64>,
+    pub insecure: Option<bool>,
+    pub concurrency: Option<usize>,
+}
+
+impl ConfigFile {
+    /// Load from default path (~/.config/jira-cli/config.toml) if it exists.
+    /// Returns Ok(Default) if the file doesn't exist or the home dir is unavailable.
+    pub fn load_default() -> Result<Self> {
+        let path = match Self::default_path() {
+            Ok(p) => p,
+            // If $HOME is not set (e.g. env_clear in tests), treat as no config file.
+            Err(_) => return Ok(Self::default()),
+        };
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        Self::load_from(&path)
     }
 
-    pub fn from_map(env: &HashMap<String, String>) -> Result<Self> {
-        let raw_url = env
+    pub fn load_from(path: &std::path::Path) -> Result<Self> {
+        let bytes = std::fs::read_to_string(path)
+            .map_err(|e| Error::Config(format!("reading {}: {e}", path.display())))?;
+        let cfg: Self = toml::from_str(&bytes)
+            .map_err(|e| Error::Config(format!("parsing {}: {e}", path.display())))?;
+        warn_insecure_permissions(path, &cfg);
+        Ok(cfg)
+    }
+
+    pub fn default_path() -> Result<std::path::PathBuf> {
+        // XDG: $XDG_CONFIG_HOME/jira-cli/config.toml, default ~/.config/jira-cli/config.toml
+        let base = if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+            std::path::PathBuf::from(xdg)
+        } else {
+            let home = std::env::var("HOME")
+                .map_err(|_| Error::Config("$HOME is not set; cannot locate config file".into()))?;
+            std::path::PathBuf::from(home).join(".config")
+        };
+        Ok(base.join("jira-cli").join("config.toml"))
+    }
+}
+
+fn warn_insecure_permissions(path: &std::path::Path, cfg: &ConfigFile) {
+    // Only warn if the file contains secrets.
+    let has_secret = cfg.password.is_some() || cfg.session_cookie.is_some();
+    if !has_secret {
+        return;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(path) {
+            let mode = meta.permissions().mode() & 0o777;
+            if mode & 0o077 != 0 {
+                eprintln!(
+                    "{}",
+                    serde_json::json!({
+                        "warning": format!(
+                            "config file {} has mode {:o}; recommend chmod 600 (contains secrets)",
+                            path.display(), mode
+                        )
+                    })
+                );
+            }
+        }
+    }
+}
+
+impl JiraConfig {
+    /// Load config by merging: env vars > config file > defaults.
+    /// CLI flag overrides (--timeout, --insecure) are applied in main.rs after loading.
+    pub fn load() -> Result<Self> {
+        let file = ConfigFile::load_default()?;
+        let env: HashMap<String, String> = std::env::vars().collect();
+        Self::merge(&env, &file)
+    }
+
+    pub fn merge(env: &HashMap<String, String>, file: &ConfigFile) -> Result<Self> {
+        let url = env
             .get("JIRA_URL")
-            .ok_or_else(|| Error::Config("JIRA_URL is required".into()))?;
-        let base_url = Url::parse(raw_url)
+            .cloned()
+            .or_else(|| file.url.clone())
+            .ok_or_else(|| {
+                Error::Config(
+                    "JIRA_URL is required (set env var or add to ~/.config/jira-cli/config.toml)"
+                        .into(),
+                )
+            })?;
+        let base_url = Url::parse(&url)
             .map_err(|e| Error::Config(format!("JIRA_URL is not a valid URL: {e}")))?;
         if !matches!(base_url.scheme(), "http" | "https") {
             return Err(Error::Config(
@@ -39,32 +125,38 @@ impl JiraConfig {
 
         let method = env
             .get("JIRA_AUTH_METHOD")
+            .cloned()
+            .or_else(|| file.auth_method.clone())
             .map(|s| s.to_lowercase())
             .unwrap_or_else(|| "basic".into());
+
         let auth = match method.as_str() {
             "basic" => {
                 let user = env
                     .get("JIRA_USER")
-                    .ok_or_else(|| Error::Config("JIRA_USER is required for basic auth".into()))?
-                    .clone();
+                    .cloned()
+                    .or_else(|| file.user.clone())
+                    .ok_or_else(|| Error::Config("JIRA_USER is required for basic auth".into()))?;
                 let password = env
                     .get("JIRA_PASSWORD")
+                    .cloned()
+                    .or_else(|| file.password.clone())
                     .ok_or_else(|| {
                         Error::Config("JIRA_PASSWORD is required for basic auth".into())
-                    })?
-                    .clone();
+                    })?;
                 AuthConfig::Basic { user, password }
             }
             "cookie" => {
                 let cookie = env
                     .get("JIRA_SESSION_COOKIE")
+                    .cloned()
+                    .or_else(|| file.session_cookie.clone())
                     .ok_or_else(|| {
                         Error::Config(
                             "JIRA_SESSION_COOKIE is required for cookie auth (e.g. 'JSESSIONID=abc')"
                                 .into(),
                         )
-                    })?
-                    .clone();
+                    })?;
                 AuthConfig::Cookie { cookie }
             }
             other => {
@@ -79,15 +171,20 @@ impl JiraConfig {
             .map(|v| v.parse::<u64>())
             .transpose()
             .map_err(|e| Error::Config(format!("JIRA_TIMEOUT: {e}")))?
+            .or(file.timeout_secs)
             .unwrap_or(30);
 
-        let insecure = parse_bool(env.get("JIRA_INSECURE").map(String::as_str))?;
+        let insecure = match env.get("JIRA_INSECURE").map(String::as_str) {
+            Some("") | None => file.insecure.unwrap_or(false),
+            Some(v) => parse_bool_str(v)?,
+        };
 
         let concurrency = env
             .get("JIRA_CONCURRENCY")
             .map(|v| v.parse::<usize>())
             .transpose()
             .map_err(|e| Error::Config(format!("JIRA_CONCURRENCY: {e}")))?
+            .or(file.concurrency)
             .unwrap_or(4)
             .clamp(1, 16);
 
@@ -98,6 +195,16 @@ impl JiraConfig {
             insecure,
             concurrency,
         })
+    }
+
+    /// Thin wrapper for backward compat with tests that call from_env.
+    pub fn from_env() -> Result<Self> {
+        Self::load()
+    }
+
+    /// Thin wrapper for backward compat with tests that call from_map.
+    pub fn from_map(env: &HashMap<String, String>) -> Result<Self> {
+        Self::merge(env, &ConfigFile::default())
     }
 
     /// Redacted JSON view for `config show`.
@@ -118,12 +225,12 @@ impl JiraConfig {
     }
 }
 
-fn parse_bool(v: Option<&str>) -> Result<bool> {
-    match v.map(str::to_lowercase).as_deref() {
-        None | Some("") => Ok(false),
-        Some("1" | "true" | "yes" | "on") => Ok(true),
-        Some("0" | "false" | "no" | "off") => Ok(false),
-        Some(other) => Err(Error::Config(format!(
+fn parse_bool_str(v: &str) -> Result<bool> {
+    match v.to_lowercase().as_str() {
+        "" => Ok(false),
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        other => Err(Error::Config(format!(
             "expected boolean value, got '{other}'"
         ))),
     }
@@ -253,5 +360,58 @@ mod tests {
         .unwrap();
         assert_eq!(cfg.timeout_secs, 60);
         assert!(cfg.insecure);
+    }
+
+    #[test]
+    fn file_plus_env_precedence() {
+        let file = ConfigFile {
+            url: Some("https://from-file.example".into()),
+            user: Some("file-user".into()),
+            password: Some("file-pass".into()),
+            ..Default::default()
+        };
+        let env: HashMap<String, String> = [("JIRA_URL".into(), "https://from-env.example".into())]
+            .into_iter()
+            .collect();
+        let cfg = JiraConfig::merge(&env, &file).unwrap();
+        // Env wins over file for JIRA_URL:
+        assert_eq!(cfg.base_url.as_str(), "https://from-env.example/");
+        // File wins for user/password since env doesn't provide them:
+        match cfg.auth {
+            AuthConfig::Basic { user, password } => {
+                assert_eq!(user, "file-user");
+                assert_eq!(password, "file-pass");
+            }
+            _ => panic!("expected basic"),
+        }
+    }
+
+    #[test]
+    fn file_only_still_loads() {
+        let file = ConfigFile {
+            url: Some("https://j.example".into()),
+            user: Some("alice".into()),
+            password: Some("secret".into()),
+            ..Default::default()
+        };
+        let cfg = JiraConfig::merge(&HashMap::new(), &file).unwrap();
+        assert_eq!(cfg.base_url.as_str(), "https://j.example/");
+    }
+
+    #[test]
+    fn config_file_parses_full_toml() {
+        let raw = r#"
+url = "https://j.example"
+user = "alice"
+password = "p"
+timeout_secs = 60
+insecure = true
+concurrency = 8
+"#;
+        let cfg: ConfigFile = toml::from_str(raw).unwrap();
+        assert_eq!(cfg.url.as_deref(), Some("https://j.example"));
+        assert_eq!(cfg.timeout_secs, Some(60));
+        assert_eq!(cfg.insecure, Some(true));
+        assert_eq!(cfg.concurrency, Some(8));
     }
 }

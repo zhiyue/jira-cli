@@ -7,25 +7,22 @@ class JiraCli < Formula
   desc "Agent-first CLI for legacy Jira Server 8.13.5"
   homepage "https://github.com/zhiyue/jira-cli"
   license "Apache-2.0"
-  version "0.1.0"
+  version "0.2.0"
 
   on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/zhiyue/jira-cli/releases/download/v0.1.0/jira-cli-v0.1.0-aarch64-apple-darwin.tar.gz"
-      sha256 "146b29127e7e79e3a581ea4f0e64763a250e48001359a8802f941fdaa8df3adb"
-    else
-      url "https://github.com/zhiyue/jira-cli/releases/download/v0.1.0/jira-cli-v0.1.0-x86_64-apple-darwin.tar.gz"
-      sha256 "c8dc2cbf55421faec77fa21c41b9830daa4fea5519430e0aca2297085ce36d9e"
-    end
+    # Single arm64 binary for all Macs while the x86_64-apple-darwin build is
+    # paused (runner queue issue); Intel Macs execute it under Rosetta 2.
+    url "https://github.com/zhiyue/jira-cli/releases/download/v0.2.0/jira-cli-v0.2.0-aarch64-apple-darwin.tar.gz"
+    sha256 "f1672481840ab578d978f57174a6000530c72ee400bf9685be4b8cdd6ea2dfde"
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/zhiyue/jira-cli/releases/download/v0.1.0/jira-cli-v0.1.0-aarch64-unknown-linux-gnu.tar.gz"
-      sha256 "9ec6fe61b5dbd0b408c4d0a5815ec725a382663be0719b6a9b27fcf7ce4aebf6"
+      url "https://github.com/zhiyue/jira-cli/releases/download/v0.2.0/jira-cli-v0.2.0-aarch64-unknown-linux-gnu.tar.gz"
+      sha256 "f0bdfa74f48c27bbf884139801842610e24f779825c084693b0609285b11fd9d"
     else
-      url "https://github.com/zhiyue/jira-cli/releases/download/v0.1.0/jira-cli-v0.1.0-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "f7ca06d93df43846e93e32b8ab0ed636917290ad34a9b90f3c4df736c6611364"
+      url "https://github.com/zhiyue/jira-cli/releases/download/v0.2.0/jira-cli-v0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "f97fa5dd348d3674b58bc31530a46ec6e733865efd66671b8de62979872f5a31"
     end
   end
 

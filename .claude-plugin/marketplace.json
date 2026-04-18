@@ -1,0 +1,20 @@
+{
+  "name": "jira-cli",
+  "description": "Marketplace for the jira-cli agent skill.",
+  "owner": {
+    "name": "zhiyue",
+    "url": "https://github.com/zhiyue"
+  },
+  "plugins": [
+    {
+      "name": "jira-cli",
+      "version": "0.2.2",
+      "description": "Agent skill wrapping jira-cli — Jira Server 8.13.5 issues, JQL, sprints, epics, bulk ops.",
+      "source": "./dist/plugin",
+      "author": {
+        "name": "zhiyue",
+        "url": "https://github.com/zhiyue"
+      }
+    }
+  ]
+}

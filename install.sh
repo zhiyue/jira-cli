@@ -67,9 +67,9 @@ if [ -z "$INSTALL_DIR" ]; then
         INSTALL_DIR="/usr/local/bin"
     else
         INSTALL_DIR="$HOME/.local/bin"
-        mkdir -p "$INSTALL_DIR"
     fi
 fi
+mkdir -p "$INSTALL_DIR"
 
 # Assemble URLs
 BIN_NAME="jira-cli-${VERSION}-${TARGET}"

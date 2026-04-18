@@ -15,6 +15,21 @@ Modern Jira CLIs assume Cloud or newer Server versions. For teams stuck on 8.13.
 - Field aliases + renames for messy customfield landscapes
 - TOML config with defaults, JQL aliases, per-command field projections
 
+## Why a CLI and not an MCP server?
+
+A Jira MCP server and `jira-cli` cover the same ground from an agent's perspective. We went CLI because of **process model economics**:
+
+- **MCP = long-lived daemon.** Every concurrent Claude Code / agent session spawns its own MCP child process and keeps it resident. A typical Node or Python MCP stays **30–80 MiB RSS idle** per instance. Five agent sessions on one laptop → 150–400 MiB just holding idle connections. IPC buffers, language runtime, cached TLS context — none of it freeable while the session lives.
+- **CLI = fork-exec, short-lived.** `jira-cli` uses memory **only during the invocation**. Peak ~4 MiB per call ([see benchmarks](bench/results/BENCHMARK_API.md)), freed on exit. A burst of 20 concurrent calls peaks under 100 MiB total and returns to zero when the work's done.
+- **Startup cost is negligible** for the usage pattern. Agents run a jira command, read the JSON, move on — not a tight inner loop where 10–20 ms cold start would matter. Wall-clock on real Jira is dominated by ~450 ms of network RTT regardless of tool.
+- **Composable by default.** Pipe into `jq`, feed into `xargs`, redirect to file, run in CI — nothing special. An MCP needs a bespoke client per consumer.
+- **Zero protocol lock-in.** Jira-ccli speaks JSON-over-stdout; any agent runtime (Claude Code, Codex, Copilot CLI, a shell script) can use it. MCP requires the host to implement the MCP protocol.
+- **Observable.** `-vv` gives structured tracing; `time -l` measures usage; binaries signed and checksummed. Debugging an MCP means debugging its host's protocol stack.
+
+**When an MCP would make more sense**: when you need persistent state across calls (cached auth tokens with refresh logic, streaming subscriptions to Jira webhooks, multi-step workflows with inter-call coordination). None of those apply to the workflows we target.
+
+For the rare case where an agent really wants structured tool semantics instead of shelling out, the `schema` command + stable JSON contract make a thin MCP wrapper around this binary trivial (~50 lines of code) — without baking one into the distribution.
+
 ## Install
 
 ### Homebrew (macOS + Linux)

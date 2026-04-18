@@ -43,15 +43,6 @@ fn try_main(cli: &Cli) -> jira_cli::Result<()> {
     if cli.global.insecure {
         cfg.insecure = true;
     }
-    // Only warn on TTY — agent/pipe usage stays quiet.
-    if cfg.insecure && std::io::IsTerminal::is_terminal(&std::io::stderr()) {
-        eprintln!(
-            "{}",
-            serde_json::json!({
-                "warning": "TLS verification disabled; do not use in production"
-            })
-        );
-    }
     let client = HttpClient::new(&cfg)?;
     dispatch::run(&mut lock, &cfg, &client, cli)?;
     lock.flush()?;

@@ -5,6 +5,13 @@ All notable changes to jira-cli are documented in this file.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-04-18
+
+### Changed
+- Removed the `{"warning": "TLS verification disabled; do not use in production"}`
+  line that was emitted to stderr whenever `insecure = true` was active. It was
+  noisy for agent/pipe users and the user already opted in via flag/env/config.
+
 ## [0.2.0] - 2026-04-18
 
 ### Added

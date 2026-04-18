@@ -2,7 +2,7 @@
 # The plan doc still reads 1.75; treat this file as authoritative.
 [package]
 name = "jira-cli"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.88"
 license = "Apache-2.0"

@@ -14,8 +14,15 @@ pub fn run<W: Write>(
     g: &GlobalArgs,
     args: &SearchArgs,
 ) -> Result<()> {
-    let jira_fields =
-        resolve_default_jira_fields(args.jira_fields.as_deref(), &cfg.defaults.search_fields);
+    // If --keys-only, force compact projection (no Jira-side fields, output key only)
+    let (jira_fields, fields_override) = if args.keys_only {
+        (Vec::new(), Some(vec!["key".to_string()]))
+    } else {
+        (
+            resolve_default_jira_fields(args.jira_fields.as_deref(), &cfg.defaults.search_fields),
+            None,
+        )
+    };
     let params = SearchParams {
         jql: args.jql.clone(),
         fields: jira_fields,
@@ -23,7 +30,7 @@ pub fn run<W: Write>(
         max: args.max,
         page_size: args.page_size,
     };
-    let fields = g.field_list();
+    let fields = fields_override.or_else(|| g.field_list());
     let renames = cfg.effective_renames(client)?;
     let opts = g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
 

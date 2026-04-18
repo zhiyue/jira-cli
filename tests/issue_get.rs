@@ -73,3 +73,34 @@ async fn get_404_becomes_not_found() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn get_with_changelog_expand() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/issue/MGX-1"))
+        .and(query_param("expand", "changelog"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "key": "MGX-1",
+            "changelog": {
+                "startAt": 0, "maxResults": 100, "total": 2,
+                "histories": [
+                    {"id":"1","created":"2026-01-01","items":[]},
+                    {"id":"2","created":"2026-01-02","items":[]}
+                ]
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    in_blocking(move || {
+        let opts = issue::GetOpts {
+            fields: vec![],
+            expand: vec!["changelog".into()],
+        };
+        let v = issue::get(&client, "MGX-1", &opts).unwrap();
+        let entries = v["changelog"]["histories"].as_array().unwrap();
+        assert_eq!(entries.len(), 2);
+    })
+    .await;
+}

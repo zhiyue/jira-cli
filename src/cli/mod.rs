@@ -167,6 +167,16 @@ pub enum IssueCmd {
     /// Issue watchers
     #[command(subcommand)]
     Watchers(WatchersCmd),
+    /// Show change history — shortcut for `issue get <KEY> --expand changelog`
+    Changelog(IssueChangelog),
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IssueChangelog {
+    pub key: String,
+    /// Max history entries to emit (default: all)
+    #[arg(long)]
+    pub max: Option<u64>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -208,7 +218,7 @@ pub struct IssueGet {
     /// Comma-separated fields to include (maps to Jira's `fields` query param)
     #[arg(long)]
     pub jira_fields: Option<String>,
-    /// Comma-separated `expand` values (e.g. changelog,renderedFields)
+    /// Comma-separated `expand` values. Useful: changelog, renderedFields, transitions, names, schema, operations
     #[arg(long)]
     pub expand: Option<String>,
 }
@@ -283,6 +293,7 @@ pub struct SearchArgs {
     /// Comma-separated Jira-side field selector
     #[arg(long = "jira-fields")]
     pub jira_fields: Option<String>,
+    /// Comma-separated `expand` values. Useful: changelog, renderedFields, transitions, names, schema, operations
     #[arg(long)]
     pub expand: Option<String>,
     /// Cap total results emitted (after server-side pagination)
@@ -291,6 +302,9 @@ pub struct SearchArgs {
     /// Page size sent to server (default 100)
     #[arg(long = "page-size", default_value_t = 100)]
     pub page_size: u64,
+    /// Shortcut: return only issue keys (sets --jira-fields "" --fields "key")
+    #[arg(long = "keys-only")]
+    pub keys_only: bool,
 }
 
 #[derive(Subcommand, Debug)]

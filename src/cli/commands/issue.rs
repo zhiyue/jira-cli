@@ -6,7 +6,7 @@ use crate::cli::{IssueCmd, TransitionsCmd};
 use crate::config::JiraConfig;
 use crate::error::Result;
 use crate::http::HttpClient;
-use crate::output::{emit_value, Format};
+use crate::output::{emit_line, emit_value, Format};
 use std::collections::HashMap;
 use std::io::Write;
 
@@ -59,6 +59,7 @@ pub fn dispatch<W: Write>(
         IssueCmd::Watchers(sub) => {
             crate::cli::commands::watchers::dispatch(out, cfg, client, g, sub)
         }
+        IssueCmd::Changelog(a) => changelog(out, cfg, client, g, a),
     }
 }
 
@@ -249,6 +250,40 @@ fn resolve_raw_value(raw: &crate::cli::args::RawValue) -> Result<serde_json::Val
             Ok(serde_json::Value::String(buf))
         }
     }
+}
+
+fn changelog<W: Write>(
+    out: &mut W,
+    cfg: &JiraConfig,
+    client: &HttpClient,
+    g: &GlobalArgs,
+    args: &crate::cli::IssueChangelog,
+) -> Result<()> {
+    let opts = issue::GetOpts {
+        fields: vec![], // don't need fields, only changelog
+        expand: vec!["changelog".into()],
+    };
+    let v = issue::get(client, &args.key, &opts)?;
+    let entries = v["changelog"]["histories"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let renames = cfg.effective_renames(client)?;
+    let fields = g.field_list();
+    let emit_opts = g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
+    let cap = args.max.unwrap_or(u64::MAX);
+    let mut count = 0u64;
+    for entry in entries {
+        if count >= cap {
+            break;
+        }
+        emit_value(out, entry, &emit_opts)?;
+        count += 1;
+    }
+    emit_line(
+        out,
+        &serde_json::json!({"summary": {"count": count, "total": v["changelog"]["total"]}}),
+    )
 }
 
 fn bulk_create<W: Write>(

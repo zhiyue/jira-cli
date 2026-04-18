@@ -26,16 +26,16 @@ curl -sSL https://raw.githubusercontent.com/zhiyue/jira-cli/main/install.sh | sh
 Do not attempt to run any other command until `--version` prints a line
 like `jira-cli 0.2.2 (target=..., git=...)`.
 
-Config lives at `~/.config/jira-cli/jira.toml`. Bootstrap with:
+Config lives at `~/.config/jira-cli/config.toml`. Bootstrap with:
 
 ```bash
 jira-cli config init
 ```
 
 See `references/config.md` in this skill for the full config surface
-(`JIRA_URL`, `JIRA_TOKEN`, `default_project`, `[jql_aliases]`,
-`[field_aliases]`, `[field_renames]`, `auto_rename_custom_fields`,
-`insecure`, `[defaults]`).
+(`JIRA_URL`, `JIRA_USER`, `JIRA_PASSWORD`, `default_project`,
+`[jql_aliases]`, `[field_aliases]`, `[field_renames]`,
+`auto_rename_custom_fields`, `insecure`, `[defaults]`).
 
 ## 1. Discover capabilities before guessing flags
 
@@ -126,10 +126,11 @@ jira-cli epic issues PROJ-10 --keys-only
 
 ## 4. When something is off
 
-- Auth failure (exit 3) → check `JIRA_TOKEN` is a current PAT and that
-  the URL in `jira.toml` matches the PAT's tenant.
+- Auth failure (exit 3) → verify `JIRA_URL` and `JIRA_USER`/`JIRA_PASSWORD`
+  (or `JIRA_SESSION_COOKIE` under cookie auth) match a working login.
+  A Jira PAT plugs into the `password` slot, not a dedicated `JIRA_TOKEN`.
 - Custom fields showing as `customfield_NNNNN` → set
-  `auto_rename_custom_fields = true` in `jira.toml`, or add explicit
+  `auto_rename_custom_fields = true` in `config.toml`, or add explicit
   `[field_renames]` / `[field_aliases]` entries. See `references/config.md`.
 - TLS errors against self-signed instances → `insecure = true` in
-  `jira.toml` (no stderr warning — explicit opt-in).
+  `config.toml` (no stderr warning — explicit opt-in).

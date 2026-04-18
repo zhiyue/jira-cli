@@ -7,6 +7,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.2.2] - 2026-04-18
 
+### Added
+- `dist/plugin/` — Claude Code plugin + Codex-compatible skill for
+  `jira-cli`. Installable via
+  `/plugin marketplace add zhiyue/jira-cli && /plugin install jira-cli@jira-cli`
+  in Claude Code, or via `$skill-installer <tree-url>` / a symlink to
+  `~/.agents/skills/` in Codex CLI. Skill auto-triggers on
+  Jira-shaped conversations and preflights `jira-cli --version` with
+  an install hint on miss.
+
 ### Changed
 - `jira-cli --version` now prints target triple and the 12-char git commit
   used for the build, matching the style of tools like `gitlab`:

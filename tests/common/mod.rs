@@ -28,6 +28,7 @@ pub async fn spawn_mock_basic() -> (MockServer, HttpClient) {
             defaults: Default::default(),
             field_renames: Default::default(),
             jql_aliases: Default::default(),
+            default_project: None,
             effective_renames_cache: Default::default(),
         };
         HttpClient::new(&cfg).expect("build HttpClient")
@@ -54,6 +55,7 @@ pub async fn spawn_mock_cookie() -> (MockServer, HttpClient) {
             defaults: Default::default(),
             field_renames: Default::default(),
             jql_aliases: Default::default(),
+            default_project: None,
             effective_renames_cache: Default::default(),
         };
         HttpClient::new(&cfg).expect("build HttpClient")

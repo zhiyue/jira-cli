@@ -20,6 +20,8 @@ pub struct JiraConfig {
     pub field_renames: std::collections::HashMap<String, String>,
     /// JQL shortcuts: @alias expands to the stored JQL string in `search` command.
     pub jql_aliases: std::collections::HashMap<String, String>,
+    /// Default project key used when a command's `--project` flag is omitted.
+    pub default_project: Option<String>,
     /// Cache for `effective_renames` result — computed at most once per invocation.
     /// Public for struct literal construction in tests; treat as opaque.
     pub effective_renames_cache: std::cell::OnceCell<std::collections::HashMap<String, String>>,
@@ -67,6 +69,8 @@ pub struct ConfigFile {
     /// Named JQL shortcuts. Use `@alias` in `search` to expand.
     #[serde(default)]
     pub jql_aliases: std::collections::HashMap<String, String>,
+    /// Default project key used when a command's `--project` flag is omitted.
+    pub default_project: Option<String>,
 }
 
 impl ConfigFile {
@@ -229,6 +233,11 @@ impl JiraConfig {
         let defaults = file.defaults.clone();
         let field_renames = file.field_renames.clone();
         let jql_aliases = file.jql_aliases.clone();
+        let default_project = env
+            .get("JIRA_PROJECT")
+            .filter(|v| !v.is_empty())
+            .cloned()
+            .or_else(|| file.default_project.clone());
 
         Ok(Self {
             base_url,
@@ -240,6 +249,7 @@ impl JiraConfig {
             defaults,
             field_renames,
             jql_aliases,
+            default_project,
             effective_renames_cache: std::cell::OnceCell::new(),
         })
     }
@@ -302,6 +312,7 @@ impl JiraConfig {
             },
             "field_renames": &self.field_renames,
             "jql_aliases": &self.jql_aliases,
+            "default_project": &self.default_project,
         })
     }
 }
@@ -330,6 +341,7 @@ impl std::fmt::Debug for JiraConfig {
             .field("defaults", &self.defaults)
             .field("field_renames", &self.field_renames)
             .field("jql_aliases", &self.jql_aliases)
+            .field("default_project", &self.default_project)
             .finish()
     }
 }
@@ -586,6 +598,63 @@ customfield_10006 = "story_points"
             cfg.field_renames.get("customfield_10006"),
             Some(&"story_points".to_string())
         );
+    }
+
+    #[test]
+    fn default_project_is_none_by_default() {
+        let cfg = JiraConfig::from_map(&env(&[
+            ("JIRA_URL", "https://j.example"),
+            ("JIRA_USER", "alice"),
+            ("JIRA_PASSWORD", "p"),
+        ]))
+        .unwrap();
+        assert!(cfg.default_project.is_none());
+    }
+
+    #[test]
+    fn default_project_parsed_from_file() {
+        let raw = r#"
+url = "https://j.example"
+user = "alice"
+password = "p"
+default_project = "MGX"
+"#;
+        let file: ConfigFile = toml::from_str(raw).unwrap();
+        assert_eq!(file.default_project.as_deref(), Some("MGX"));
+        let cfg = JiraConfig::merge(&HashMap::new(), &file).unwrap();
+        assert_eq!(cfg.default_project.as_deref(), Some("MGX"));
+    }
+
+    #[test]
+    fn env_jira_project_overrides_file_default_project() {
+        let file = ConfigFile {
+            url: Some("https://j.example".into()),
+            user: Some("alice".into()),
+            password: Some("p".into()),
+            default_project: Some("FROMFILE".into()),
+            ..Default::default()
+        };
+        let env: HashMap<String, String> = [("JIRA_PROJECT".into(), "FROMENV".into())]
+            .into_iter()
+            .collect();
+        let cfg = JiraConfig::merge(&env, &file).unwrap();
+        assert_eq!(cfg.default_project.as_deref(), Some("FROMENV"));
+    }
+
+    #[test]
+    fn empty_jira_project_env_falls_back_to_file() {
+        let file = ConfigFile {
+            url: Some("https://j.example".into()),
+            user: Some("alice".into()),
+            password: Some("p".into()),
+            default_project: Some("FROMFILE".into()),
+            ..Default::default()
+        };
+        let env: HashMap<String, String> = [("JIRA_PROJECT".into(), String::new())]
+            .into_iter()
+            .collect();
+        let cfg = JiraConfig::merge(&env, &file).unwrap();
+        assert_eq!(cfg.default_project.as_deref(), Some("FROMFILE"));
     }
 
     #[test]

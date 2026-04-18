@@ -108,6 +108,9 @@ insecure = false
 timeout_secs = 30
 concurrency = 4
 
+# optional: used by `issue create` when --project is omitted
+default_project = "MGX"
+
 # auth_method = "cookie"                         # optional; default "basic"
 # session_cookie = "JSESSIONID=..."              # required if cookie auth
 
@@ -146,6 +149,7 @@ Any of the config keys above can be overridden via env:
 | `JIRA_URL`, `JIRA_USER`, `JIRA_PASSWORD` | Basic auth |
 | `JIRA_AUTH_METHOD=cookie` + `JIRA_SESSION_COOKIE` | Cookie auth |
 | `JIRA_TIMEOUT`, `JIRA_INSECURE`, `JIRA_CONCURRENCY` | Runtime |
+| `JIRA_PROJECT` | Default project key (overrides `default_project` in config) |
 | `XDG_CONFIG_HOME` | Override config dir base |
 
 ## Agent quickstart

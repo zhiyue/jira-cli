@@ -99,8 +99,17 @@ fn create<W: Write>(
     let sets = SetArg::parse_many(&args.set)?;
     let aliases = merged_field_aliases(cfg, g)?;
     let resolver = FieldResolver::new(client).with_aliases(aliases);
+    let project = args
+        .project
+        .as_deref()
+        .or(cfg.default_project.as_deref())
+        .ok_or_else(|| {
+            crate::error::Error::Config(
+                "project key is required: pass --project or set `default_project` in config / $JIRA_PROJECT".into(),
+            )
+        })?;
     let mut fields = serde_json::Map::new();
-    fields.insert("project".into(), serde_json::json!({"key": args.project}));
+    fields.insert("project".into(), serde_json::json!({"key": project}));
     fields.insert(
         "issuetype".into(),
         serde_json::json!({"name": args.issue_type}),

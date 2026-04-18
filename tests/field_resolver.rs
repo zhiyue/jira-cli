@@ -147,6 +147,7 @@ fn make_test_cfg(server: &MockServer) -> JiraConfig {
         defaults: Default::default(),
         field_renames: Default::default(),
         jql_aliases: Default::default(),
+        default_project: None,
         effective_renames_cache: Default::default(),
     }
 }

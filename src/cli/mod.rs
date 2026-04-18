@@ -225,9 +225,9 @@ pub struct IssueGet {
 
 #[derive(clap::Args, Debug)]
 pub struct IssueCreate {
-    /// Project key, e.g. MGX
+    /// Project key, e.g. MGX. Falls back to `default_project` in config / `JIRA_PROJECT` env.
     #[arg(short, long)]
-    pub project: String,
+    pub project: Option<String>,
     /// Issue type name or id (e.g. Task, Bug)
     #[arg(short = 't', long = "type")]
     pub issue_type: String,

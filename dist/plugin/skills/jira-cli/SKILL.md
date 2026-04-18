@@ -40,7 +40,8 @@ See `references/config.md` in this skill for the full config surface
 ## 1. Discover capabilities before guessing flags
 
 ```bash
-jira-cli schema --format=json        # full command tree as JSON
+jira-cli schema                      # full command tree as JSON (default)
+jira-cli schema <subcommand>         # just that subtree
 jira-cli <command> --help            # per-command help
 ```
 
@@ -94,8 +95,16 @@ jira-cli issue transition PROJ-123 "In Progress"
 ### Bulk operations (parallel fan-out)
 
 ```bash
-jira-cli bulk transition @my-open "Done"
-jira-cli bulk comment PROJ-1,PROJ-2 --body "Released in v2.4.0"
+# bulk transition — feed a JSONL stream of {"key": "...", "transition": "..."}
+jira-cli search 'project=PROJ AND status=Review' --keys-only \
+  | awk '{printf "{\"key\":\"%s\",\"transition\":\"Done\"}\n",$0}' \
+  | jira-cli bulk transition --file -
+
+# bulk comment — each line: {"key": "...", "body": "..."}
+printf '%s\n' \
+  '{"key":"PROJ-1","body":"Released in v2.4.0"}' \
+  '{"key":"PROJ-2","body":"Released in v2.4.0"}' \
+  | jira-cli bulk comment --file -
 ```
 
 ### Sprint / epic

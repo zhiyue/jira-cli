@@ -229,6 +229,12 @@ JIRA_USER=alice JIRA_PASSWORD=... jira-cli session new
 
 **Want to debug a request**: run with `-vv` for `tracing::debug` events on stderr.
 
+## Performance
+
+Comparative benchmarks vs the equivalent Go CLI ([`jira-go-cli`](https://github.com/zhiyue/jira-go-cli)) show Rust on par for single-call wall-clock (network dominates at ~450 ms), but **1.44× faster on JQL search 20**, uses **1.4×–2.0× less CPU** after stripping network, and **1.5×–1.7× less peak memory** across all scenarios.
+
+See [`bench/results/BENCHMARK_API.md`](bench/results/BENCHMARK_API.md) for the full table. Regenerate with `./bench/run-api-bench.sh` (needs `hyperfine` + both binaries on PATH).
+
 ## Project layout
 
 ```

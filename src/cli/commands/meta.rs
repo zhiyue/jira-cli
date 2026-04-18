@@ -199,6 +199,8 @@ pub fn session_new<W: Write>(out: &mut W, cfg: &JiraConfig) -> Result<()> {
         field_aliases: Default::default(),
         defaults: Default::default(),
         field_renames: Default::default(),
+        jql_aliases: Default::default(),
+        effective_renames_cache: Default::default(),
     };
     let client = crate::http::HttpClient::new(&tmp_cfg)?;
     let info = session::new(&client, &user, &pass)?;

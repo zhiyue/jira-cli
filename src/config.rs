@@ -18,6 +18,11 @@ pub struct JiraConfig {
     pub defaults: Defaults,
     /// customfield_* → friendly-name renames applied to all API responses.
     pub field_renames: std::collections::HashMap<String, String>,
+    /// JQL shortcuts: @alias expands to the stored JQL string in `search` command.
+    pub jql_aliases: std::collections::HashMap<String, String>,
+    /// Cache for `effective_renames` result — computed at most once per invocation.
+    /// Public for struct literal construction in tests; treat as opaque.
+    pub effective_renames_cache: std::cell::OnceCell<std::collections::HashMap<String, String>>,
 }
 
 /// Default `jira-fields` lists for specific commands.
@@ -59,6 +64,9 @@ pub struct ConfigFile {
     /// customfield_* → friendly-name renames applied to all API responses.
     #[serde(default)]
     pub field_renames: std::collections::HashMap<String, String>,
+    /// Named JQL shortcuts. Use `@alias` in `search` to expand.
+    #[serde(default)]
+    pub jql_aliases: std::collections::HashMap<String, String>,
 }
 
 impl ConfigFile {
@@ -220,6 +228,7 @@ impl JiraConfig {
         let field_aliases = file.field_aliases.clone();
         let defaults = file.defaults.clone();
         let field_renames = file.field_renames.clone();
+        let jql_aliases = file.jql_aliases.clone();
 
         Ok(Self {
             base_url,
@@ -230,27 +239,35 @@ impl JiraConfig {
             field_aliases,
             defaults,
             field_renames,
+            jql_aliases,
+            effective_renames_cache: std::cell::OnceCell::new(),
         })
     }
 
     /// Compute the effective rename map for this invocation. Merges auto-rename
     /// (when enabled) with manual `[field_renames]`, manual takes precedence.
     /// Returns Ok(HashMap) — empty map when nothing configured.
-    /// Calling this hits `GET /rest/api/2/field` when `auto_rename_custom_fields`
-    /// is enabled; the cost is only paid once per invocation (caller caches locally).
+    /// Result is cached on first call: `GET /rest/api/2/field` is only hit once
+    /// per JiraConfig instance regardless of how many times this is called.
     pub fn effective_renames(
         &self,
         client: &crate::http::HttpClient,
     ) -> Result<std::collections::HashMap<String, String>> {
-        if !self.defaults.auto_rename_custom_fields {
-            return Ok(self.field_renames.clone());
+        if let Some(cached) = self.effective_renames_cache.get() {
+            return Ok(cached.clone());
         }
-        let mut map = crate::field_resolver::auto_rename_map(client)?;
-        // Manual overrides: last write wins → manual takes precedence
-        for (k, v) in &self.field_renames {
-            map.insert(k.clone(), v.clone());
-        }
-        Ok(map)
+        let computed = if !self.defaults.auto_rename_custom_fields {
+            self.field_renames.clone()
+        } else {
+            let mut map = crate::field_resolver::auto_rename_map(client)?;
+            // Manual overrides: last write wins → manual takes precedence
+            for (k, v) in &self.field_renames {
+                map.insert(k.clone(), v.clone());
+            }
+            map
+        };
+        let _ = self.effective_renames_cache.set(computed.clone());
+        Ok(computed)
     }
 
     /// Thin wrapper for backward compat with tests that call from_env.
@@ -284,6 +301,7 @@ impl JiraConfig {
                 "auto_rename_custom_fields": self.defaults.auto_rename_custom_fields,
             },
             "field_renames": &self.field_renames,
+            "jql_aliases": &self.jql_aliases,
         })
     }
 }
@@ -311,6 +329,7 @@ impl std::fmt::Debug for JiraConfig {
             .field("field_aliases", &self.field_aliases)
             .field("defaults", &self.defaults)
             .field("field_renames", &self.field_renames)
+            .field("jql_aliases", &self.jql_aliases)
             .finish()
     }
 }
@@ -566,6 +585,28 @@ customfield_10006 = "story_points"
         assert_eq!(
             cfg.field_renames.get("customfield_10006"),
             Some(&"story_points".to_string())
+        );
+    }
+
+    #[test]
+    fn jql_aliases_parsed_and_merged() {
+        let raw = r#"
+url = "https://j.example"
+user = "alice"
+password = "p"
+
+[jql_aliases]
+my_open = "project = MGX AND status = Open"
+"#;
+        let file: ConfigFile = toml::from_str(raw).unwrap();
+        assert_eq!(
+            file.jql_aliases.get("my_open"),
+            Some(&"project = MGX AND status = Open".to_string())
+        );
+        let cfg = JiraConfig::merge(&HashMap::new(), &file).unwrap();
+        assert_eq!(
+            cfg.jql_aliases.get("my_open"),
+            Some(&"project = MGX AND status = Open".to_string())
         );
     }
 }

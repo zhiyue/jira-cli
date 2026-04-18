@@ -146,6 +146,8 @@ fn make_test_cfg(server: &MockServer) -> JiraConfig {
         field_aliases: Default::default(),
         defaults: Default::default(),
         field_renames: Default::default(),
+        jql_aliases: Default::default(),
+        effective_renames_cache: Default::default(),
     }
 }
 
@@ -200,6 +202,33 @@ async fn effective_renames_merges_manual_over_auto() {
         let map = cfg.effective_renames(&client).unwrap();
         // Manual wins over auto-generated "story_points"
         assert_eq!(map.get("customfield_10006"), Some(&"points".to_string()));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn effective_renames_caches_auto_result() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/field"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {"id":"customfield_10006","name":"Story Points","custom":true,"clauseNames":[]}
+        ])))
+        .expect(1) // Only ONE call despite two effective_renames invocations
+        .mount(&server)
+        .await;
+
+    let mut cfg = make_test_cfg(&server);
+    cfg.defaults.auto_rename_custom_fields = true;
+
+    in_blocking(move || {
+        let r1 = cfg.effective_renames(&client).unwrap();
+        let r2 = cfg.effective_renames(&client).unwrap();
+        assert_eq!(r1, r2);
+        assert_eq!(
+            r1.get("customfield_10006"),
+            Some(&"story_points".to_string())
+        );
     })
     .await;
 }

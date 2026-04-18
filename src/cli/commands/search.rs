@@ -14,6 +14,17 @@ pub fn run<W: Write>(
     g: &GlobalArgs,
     args: &SearchArgs,
 ) -> Result<()> {
+    // Expand @alias in JQL if present
+    let effective_jql = if let Some(alias) = args.jql.strip_prefix('@') {
+        cfg.jql_aliases.get(alias).cloned().ok_or_else(|| {
+            crate::error::Error::Usage(format!(
+                "unknown JQL alias '{alias}' — define it in [jql_aliases] section of your config"
+            ))
+        })?
+    } else {
+        args.jql.clone()
+    };
+
     // If --keys-only, force compact projection (no Jira-side fields, output key only)
     let (jira_fields, fields_override) = if args.keys_only {
         (Vec::new(), Some(vec!["key".to_string()]))
@@ -24,7 +35,7 @@ pub fn run<W: Write>(
         )
     };
     let params = SearchParams {
-        jql: args.jql.clone(),
+        jql: effective_jql,
         fields: jira_fields,
         expand: split_csv(args.expand.as_deref()),
         max: args.max,

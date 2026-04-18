@@ -1,6 +1,5 @@
 {
   "name": "jira-cli",
-  "description": "Marketplace for the jira-cli agent skill.",
   "owner": {
     "name": "zhiyue",
     "url": "https://github.com/zhiyue"

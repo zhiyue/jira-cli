@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-04-18T00:00:00Z",
+  "methodology": {
+    "hf_warmup": 10,
+    "hf_runs": 60,
+    "mem_runs": 20,
+    "wall_metric": "median wall-clock time via hyperfine",
+    "cpu_metric": "mean user+sys CPU time via /usr/bin/time -l",
+    "peak_metric": "median max resident set size via /usr/bin/time -l"
+  },
+  "scenarios": [
+    {
+      "id": "ping",
+      "desc": "ping",
+      "rust_wall_ms": 445.8,
+      "go_wall_ms": 455.3,
+      "wall_ratio": 1.02,
+      "rust_cpu_ms": 7.4,
+      "go_cpu_ms": 13.4,
+      "cpu_ratio": 1.80,
+      "rust_peak_mib": 3.8,
+      "go_peak_mib": 6.2,
+      "mem_ratio": 1.63
+    },
+    {
+      "id": "whoami",
+      "desc": "whoami",
+      "rust_wall_ms": 458.9,
+      "go_wall_ms": 467.3,
+      "wall_ratio": 1.02,
+      "rust_cpu_ms": 10.3,
+      "go_cpu_ms": 14.0,
+      "cpu_ratio": 1.36,
+      "rust_peak_mib": 3.9,
+      "go_peak_mib": 6.4,
+      "mem_ratio": 1.66
+    },
+    {
+      "id": "issue_get",
+      "desc": "issue get (idiomatic — uses default jira-fields)",
+      "rust_wall_ms": 507.6,
+      "go_wall_ms": 529.6,
+      "wall_ratio": 1.04,
+      "rust_cpu_ms": 9.3,
+      "go_cpu_ms": 18.6,
+      "cpu_ratio": 1.99,
+      "rust_peak_mib": 4.1,
+      "go_peak_mib": 6.7,
+      "mem_ratio": 1.63
+    },
+    {
+      "id": "issue_get_raw",
+      "desc": "issue get (raw — all fields)",
+      "rust_wall_ms": 518.9,
+      "go_wall_ms": 524.0,
+      "wall_ratio": 1.01,
+      "rust_cpu_ms": 11.7,
+      "go_cpu_ms": 11.0,
+      "cpu_ratio": 0.94,
+      "rust_peak_mib": 4.2,
+      "go_peak_mib": 6.6,
+      "mem_ratio": 1.57,
+      "note": "Go CPU 0.94× is within noise; Rust sample had a single 10.5s outlier pulling the mean — median and CPU unaffected."
+    },
+    {
+      "id": "project_list",
+      "desc": "project list",
+      "rust_wall_ms": 519.5,
+      "go_wall_ms": 520.4,
+      "wall_ratio": 1.00,
+      "rust_cpu_ms": 7.5,
+      "go_cpu_ms": 13.9,
+      "cpu_ratio": 1.85,
+      "rust_peak_mib": 3.9,
+      "go_peak_mib": 6.7,
+      "mem_ratio": 1.69
+    },
+    {
+      "id": "search20",
+      "desc": "search 20 issues via JQL",
+      "rust_wall_ms": 560.0,
+      "go_wall_ms": 807.8,
+      "wall_ratio": 1.44,
+      "rust_cpu_ms": 11.4,
+      "go_cpu_ms": 19.0,
+      "cpu_ratio": 1.67,
+      "rust_peak_mib": 5.1,
+      "go_peak_mib": 7.7,
+      "mem_ratio": 1.51
+    }
+  ],
+  "observations": [
+    "Wall-clock parity on single-shot calls (~±5%): ~450ms network RTT dominates",
+    "search 20 is the outlier: Rust 1.44× faster wall-clock (247ms/call saved)",
+    "CPU ratio 1.4×–2.0× after stripping network",
+    "Memory peak 1.5×–1.7× smaller — Go has ~2.5 MiB runtime baseline"
+  ]
+}

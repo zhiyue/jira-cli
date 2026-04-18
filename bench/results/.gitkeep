@@ -1,0 +1,3 @@
+# Raw benchmark artifacts (api_hf_*.json, api_mem_*.txt) are regenerated
+# by ./bench/run-api-bench.sh. They are intentionally not committed; see
+# bench/README.md for how to populate them locally.

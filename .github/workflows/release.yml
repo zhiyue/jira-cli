@@ -57,3 +57,61 @@ jobs:
           checksum: sha256
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ inputs.tag || github.ref }}
+
+  bump-homebrew:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Regenerate formula
+        run: |
+          # Give GitHub a few seconds to register all sha256 assets
+          sleep 5
+          ./scripts/update-homebrew-formula.sh "${{ steps.tag.outputs.tag }}"
+
+      - name: Commit + push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet dist/homebrew/jira-cli.rb; then
+            echo "no formula changes for this tag"
+            exit 0
+          fi
+          git add dist/homebrew/jira-cli.rb
+          git commit -m "chore(homebrew): update formula for ${{ steps.tag.outputs.tag }}"
+          git push origin HEAD:main
+
+      - name: Push to Homebrew tap (optional)
+        if: ${{ env.TAP_REPO != '' && env.TAP_TOKEN != '' }}
+        env:
+          TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          TMP="$(mktemp -d)"
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" "$TMP/tap"
+          mkdir -p "$TMP/tap/Formula"
+          cp dist/homebrew/jira-cli.rb "$TMP/tap/Formula/jira-cli.rb"
+          cd "$TMP/tap"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "tap already up-to-date"
+            exit 0
+          fi
+          git add Formula/jira-cli.rb
+          git commit -m "jira-cli ${TAG}"
+          git push

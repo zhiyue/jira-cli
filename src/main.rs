@@ -43,7 +43,8 @@ fn try_main(cli: &Cli) -> jira_cli::Result<()> {
     if cli.global.insecure {
         cfg.insecure = true;
     }
-    if cfg.insecure {
+    // Only warn on TTY — agent/pipe usage stays quiet.
+    if cfg.insecure && std::io::IsTerminal::is_terminal(&std::io::stderr()) {
         eprintln!(
             "{}",
             serde_json::json!({

@@ -172,7 +172,7 @@ fn write_secure(path: &std::path::Path, contents: &[u8]) -> Result<()> {
 
 pub fn session_new<W: Write>(out: &mut W, cfg: &JiraConfig) -> Result<()> {
     use crate::api::session;
-    let (user, pass) = read_credentials()?;
+    let (user, pass) = read_credentials(cfg)?;
     // Build a temporary client with basic auth to call the session endpoint
     // (cookie auth can't bootstrap itself).
     let tmp_cfg = JiraConfig {
@@ -201,26 +201,48 @@ pub fn session_new<W: Write>(out: &mut W, cfg: &JiraConfig) -> Result<()> {
     Ok(())
 }
 
-fn read_credentials() -> Result<(String, String)> {
-    use std::io::BufRead;
+/// Resolve basic-auth credentials for `session new`.
+///
+/// Precedence: `JIRA_USER`/`JIRA_PASSWORD` env > already-loaded config > interactive stdin.
+/// The loaded `JiraConfig` may itself have been populated from the config file, so if the
+/// user has `user` / `password` in `~/.config/jira-cli/config.toml`, that's what we use here.
+fn read_credentials(cfg: &JiraConfig) -> Result<(String, String)> {
+    use crate::config::AuthConfig;
+
     let env: std::collections::HashMap<String, String> = std::env::vars().collect();
-    let user = env
-        .get("JIRA_USER")
-        .cloned()
-        .or_else(|| {
-            let mut l = String::new();
-            std::io::stdin().lock().read_line(&mut l).ok()?;
-            Some(l.trim_end().to_string())
-        })
-        .ok_or_else(|| crate::error::Error::Usage("JIRA_USER not set and no stdin".into()))?;
-    let pass = env
-        .get("JIRA_PASSWORD")
-        .cloned()
-        .or_else(|| {
-            let mut l = String::new();
-            std::io::stdin().lock().read_line(&mut l).ok()?;
-            Some(l.trim_end().to_string())
-        })
-        .ok_or_else(|| crate::error::Error::Usage("JIRA_PASSWORD not set and no stdin".into()))?;
+
+    let (cfg_user, cfg_pass) = match &cfg.auth {
+        AuthConfig::Basic { user, password } => (Some(user.clone()), Some(password.clone())),
+        AuthConfig::Cookie { .. } => (None, None),
+    };
+
+    let user = match env.get("JIRA_USER").cloned().or(cfg_user) {
+        Some(u) if !u.is_empty() => u,
+        _ => read_nonempty_line("User: ", "JIRA_USER")?,
+    };
+    let pass = match env.get("JIRA_PASSWORD").cloned().or(cfg_pass) {
+        Some(p) if !p.is_empty() => p,
+        _ => read_nonempty_line("Password (will be echoed): ", "JIRA_PASSWORD")?,
+    };
+
     Ok((user, pass))
+}
+
+/// Prompt on stderr, read one line from stdin, fail cleanly if empty / EOF.
+fn read_nonempty_line(prompt_msg: &str, var_name: &str) -> Result<String> {
+    use std::io::{BufRead, Write};
+    eprint!("{prompt_msg}");
+    std::io::stderr().flush().ok();
+    let mut l = String::new();
+    let n = std::io::stdin()
+        .lock()
+        .read_line(&mut l)
+        .map_err(crate::error::Error::Io)?;
+    let trimmed = l.trim_end_matches(['\r', '\n']).to_string();
+    if n == 0 || trimmed.is_empty() {
+        return Err(crate::error::Error::Usage(format!(
+            "{var_name} not set in env or config, and no input on stdin"
+        )));
+    }
+    Ok(trimmed)
 }

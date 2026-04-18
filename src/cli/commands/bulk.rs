@@ -80,7 +80,7 @@ fn bulk_transition<W: Write>(
                 transitions::resolve_name(client, &input.key, &input.to)?
             };
             transitions::execute(client, &input.key, &id, input.fields.clone())?;
-            Ok(serde_json::json!({"key": input.key, "transition_id": id}))
+            Ok(serde_json::json!({"transition_id": id}))
         },
         |line| extract_key(line).unwrap_or_default(),
         out,
@@ -106,8 +106,7 @@ fn bulk_comment<W: Write>(
         lines,
         |client, line| -> Result<serde_json::Value> {
             let input: CommentInput = serde_json::from_slice(&line)?;
-            let v = comment::add(client, &input.key, &input.body)?;
-            Ok(serde_json::json!({"key": input.key, "data": v}))
+            comment::add(client, &input.key, &input.body)
         },
         |line| extract_key(line).unwrap_or_default(),
         out,

@@ -78,8 +78,9 @@ you only need issue keys for follow-up commands.
 ```bash
 jira-cli issue create \
   --project PROJ \
+  --type Bug \
   --summary "Investigate flaky login test" \
-  --set type=Bug --set priority=High
+  --set priority=High
 ```
 
 `--project` can be omitted if `default_project` is set in config or

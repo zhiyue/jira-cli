@@ -66,11 +66,33 @@ pub enum Command {
     Session(SessionCmd),
     /// Emit CLI capability discovery schema (self-describing)
     Schema(SchemaArgs),
+    /// Raw REST passthrough — for endpoints not wrapped by specific commands.
+    Raw(RawArgs),
 }
 
 #[derive(Subcommand, Debug)]
 pub enum SessionCmd {
     New,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RawArgs {
+    /// HTTP method: GET, POST, PUT, DELETE, PATCH
+    pub method: String,
+    /// API path (e.g. /rest/api/2/issue/MGX-1)
+    pub path: String,
+    /// Request body: JSON literal, @file, or `-` for stdin
+    #[arg(short = 'd', long)]
+    pub data: Option<String>,
+    /// Query parameter KEY=VALUE (repeatable)
+    #[arg(long = "query", value_name = "KEY=VALUE")]
+    pub query: Vec<String>,
+    /// Additional header KEY:VALUE (repeatable)
+    #[arg(long = "header", value_name = "KEY:VALUE")]
+    pub header: Vec<String>,
+    /// Emit response body as-is (no JSON parse / pretty-print)
+    #[arg(long)]
+    pub raw_body: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -191,6 +213,9 @@ pub struct IssueCreate {
     /// Summary (required)
     #[arg(short, long)]
     pub summary: String,
+    /// Component name (repeatable). Any --set "components=..." value overrides this.
+    #[arg(short = 'c', long = "component")]
+    pub components: Vec<String>,
     /// Repeatable KEY=VALUE. VALUE can be scalar, JSON literal, @file, or @-.
     #[arg(long = "set", value_name = "KEY=VALUE")]
     pub set: Vec<String>,
@@ -341,8 +366,16 @@ pub enum WatchersCmd {
 #[derive(Subcommand, Debug)]
 pub enum ProjectCmd {
     List,
-    Get { key: String },
-    Statuses { key: String },
+    Get {
+        key: String,
+    },
+    Statuses {
+        key: String,
+    },
+    /// List components for a project
+    Components {
+        key: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]

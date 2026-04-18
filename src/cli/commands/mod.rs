@@ -9,6 +9,7 @@ pub mod issue;
 pub mod link;
 pub mod meta;
 pub mod project;
+pub mod raw;
 pub mod schema;
 pub mod search;
 pub mod sprint;

@@ -46,5 +46,16 @@ pub fn dispatch<W: Write>(
                 &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
+        ProjectCmd::Components { key } => {
+            let items = project::components(client, key)?;
+            let fields = g.field_list();
+            let renames = cfg.effective_renames(client)?;
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
+            for c in &items {
+                emit_value(out, c.clone(), &opts)?;
+            }
+            emit_line(out, &serde_json::json!({"summary": {"count": items.len()}}))
+        }
     }
 }

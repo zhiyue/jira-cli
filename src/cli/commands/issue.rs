@@ -105,6 +105,15 @@ fn create<W: Write>(
         serde_json::json!({"name": args.issue_type}),
     );
     fields.insert("summary".into(), serde_json::json!(args.summary));
+    // --component flags: insert before --set so that --set "components=..." overrides
+    if !args.components.is_empty() {
+        let arr: Vec<serde_json::Value> = args
+            .components
+            .iter()
+            .map(|n| serde_json::json!({"name": n}))
+            .collect();
+        fields.insert("components".into(), serde_json::Value::Array(arr));
+    }
     for set in &sets {
         let id = resolver.resolve(&set.key)?;
         let value = resolve_raw_value(&set.raw)?;

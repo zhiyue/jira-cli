@@ -55,3 +55,22 @@ async fn statuses() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn components() {
+    let (server, client) = spawn_mock_basic().await;
+    Mock::given(method("GET"))
+        .and(path("/rest/api/2/project/MGX/components"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            {"id":"12118","name":"对话","description":"对话"},
+            {"id":"12119","name":"前端","description":null}
+        ])))
+        .mount(&server)
+        .await;
+    in_blocking(move || {
+        let v = project::components(&client, "MGX").unwrap();
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[0]["name"], "对话");
+    })
+    .await;
+}

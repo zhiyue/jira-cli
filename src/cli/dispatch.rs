@@ -23,5 +23,6 @@ pub fn run<W: Write>(out: &mut W, cfg: &JiraConfig, client: &HttpClient, cli: &C
         Command::Backlog(sub) => commands::backlog::dispatch(out, cfg, client, &cli.global, sub),
         Command::Session(SessionCmd::New) => commands::meta::session_new(out, cfg),
         Command::Schema(a) => commands::schema::run(out, a, cli.global.pretty),
+        Command::Raw(a) => commands::raw::run(out, cfg, client, &cli.global, a),
     }
 }

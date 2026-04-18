@@ -15,18 +15,31 @@ pub fn dispatch<W: Write>(
     cmd: &WorklogCmd,
 ) -> Result<()> {
     match cmd {
-        WorklogCmd::List { key } => {
-            let page = worklog::list(client, key)?;
-            let fields = g.field_list();
+        WorklogCmd::List {
+            key,
+            max,
+            start_at,
+            page_size,
+        } => {
+            let params = crate::api::paging::PageParams {
+                start_at: *start_at,
+                page_size: *page_size,
+                max: *max,
+            };
+            let mut iter = worklog::list_paged(client, key, params);
             let renames = cfg.effective_renames(client)?;
+            let fields = g.field_list();
             let opts =
                 g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
-            for w in &page.worklogs {
-                emit_value(out, w.clone(), &opts)?;
+            let mut count = 0u64;
+            for next in iter.by_ref() {
+                let w = next?;
+                emit_value(out, w, &opts)?;
+                count += 1;
             }
             emit_line(
                 out,
-                &serde_json::json!({"summary": {"count": page.worklogs.len(), "total": page.total}}),
+                &serde_json::json!({"summary": {"count": count, "total": iter.total()}}),
             )
         }
         WorklogCmd::Add {

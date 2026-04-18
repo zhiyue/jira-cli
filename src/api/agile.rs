@@ -32,6 +32,28 @@ pub fn list_boards(
     client.get_json_query("/rest/agile/1.0/board", &query)
 }
 
+pub fn list_boards_paged<'a>(
+    client: &'a HttpClient,
+    kind: Option<&str>,
+    project_key: Option<&str>,
+    params: crate::api::paging::PageParams,
+) -> crate::api::paging::PagedIter<'a> {
+    let kind = kind.map(|s| s.to_string());
+    let project_key = project_key.map(|s| s.to_string());
+    crate::api::paging::PagedIter::new(client, params, "values", move |client, start, size| {
+        let mut query: Vec<(&str, String)> = Vec::new();
+        if let Some(k) = &kind {
+            query.push(("type", k.clone()));
+        }
+        if let Some(p) = &project_key {
+            query.push(("projectKeyOrId", p.clone()));
+        }
+        query.push(("startAt", start.to_string()));
+        query.push(("maxResults", size.to_string()));
+        client.get_json_query("/rest/agile/1.0/board", &query)
+    })
+}
+
 pub fn get_board(client: &HttpClient, id: u64) -> Result<Value> {
     client.get_json(&format!("/rest/agile/1.0/board/{id}"))
 }
@@ -63,6 +85,28 @@ pub fn list_sprints(client: &HttpClient, board_id: u64, states: &[&str]) -> Resu
         query.push(("state", states.join(",")));
     }
     client.get_json_query(&format!("/rest/agile/1.0/board/{board_id}/sprint"), &query)
+}
+
+pub fn list_sprints_paged<'a>(
+    client: &'a HttpClient,
+    board_id: u64,
+    states: &[&str],
+    params: crate::api::paging::PageParams,
+) -> crate::api::paging::PagedIter<'a> {
+    let state_str = if states.is_empty() {
+        None
+    } else {
+        Some(states.join(","))
+    };
+    crate::api::paging::PagedIter::new(client, params, "values", move |client, start, size| {
+        let mut query: Vec<(&str, String)> = Vec::new();
+        if let Some(s) = &state_str {
+            query.push(("state", s.clone()));
+        }
+        query.push(("startAt", start.to_string()));
+        query.push(("maxResults", size.to_string()));
+        client.get_json_query(&format!("/rest/agile/1.0/board/{board_id}/sprint"), &query)
+    })
 }
 
 pub fn get_sprint(client: &HttpClient, id: u64) -> Result<Value> {
@@ -98,6 +142,30 @@ pub fn delete_sprint(client: &HttpClient, id: u64) -> Result<()> {
 
 pub fn sprint_issues(client: &HttpClient, id: u64) -> Result<Value> {
     client.get_json(&format!("/rest/agile/1.0/sprint/{id}/issue"))
+}
+
+pub fn sprint_issues_paged<'a>(
+    client: &'a HttpClient,
+    sprint_id: u64,
+    params: crate::api::paging::PageParams,
+) -> crate::api::paging::PagedIter<'a> {
+    crate::api::paging::PagedIter::new(client, params, "issues", move |client, start, size| {
+        let path =
+            format!("/rest/agile/1.0/sprint/{sprint_id}/issue?startAt={start}&maxResults={size}");
+        client.get_json(&path)
+    })
+}
+
+pub fn board_backlog_paged<'a>(
+    client: &'a HttpClient,
+    board_id: u64,
+    params: crate::api::paging::PageParams,
+) -> crate::api::paging::PagedIter<'a> {
+    crate::api::paging::PagedIter::new(client, params, "issues", move |client, start, size| {
+        let path =
+            format!("/rest/agile/1.0/board/{board_id}/backlog?startAt={start}&maxResults={size}");
+        client.get_json(&path)
+    })
 }
 
 pub fn move_issues_to_sprint(client: &HttpClient, id: u64, keys: &[String]) -> Result<()> {

@@ -15,7 +15,33 @@ pub fn dispatch<W: Write>(
     cmd: &CommentCmd,
 ) -> Result<()> {
     match cmd {
-        CommentCmd::List { key } => list(out, cfg, client, g, key),
+        CommentCmd::List {
+            key,
+            max,
+            start_at,
+            page_size,
+        } => {
+            let params = crate::api::paging::PageParams {
+                start_at: *start_at,
+                page_size: *page_size,
+                max: *max,
+            };
+            let mut iter = comment::list_paged(client, key, params);
+            let renames = cfg.effective_renames(client)?;
+            let fields = g.field_list();
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
+            let mut count = 0u64;
+            for next in iter.by_ref() {
+                let c = next?;
+                emit_value(out, c, &opts)?;
+                count += 1;
+            }
+            emit_line(
+                out,
+                &serde_json::json!({"summary": {"count": count, "total": iter.total()}}),
+            )
+        }
         CommentCmd::Add { key, body } => {
             let renames = cfg.effective_renames(client)?;
             let mut v = serde_json::json!({"ok": true, "data": comment::add(client, key, body)?});
@@ -37,24 +63,4 @@ pub fn dispatch<W: Write>(
             Ok(())
         }
     }
-}
-
-fn list<W: Write>(
-    out: &mut W,
-    cfg: &JiraConfig,
-    client: &HttpClient,
-    g: &GlobalArgs,
-    key: &str,
-) -> Result<()> {
-    let page = comment::list(client, key)?;
-    let fields = g.field_list();
-    let renames = cfg.effective_renames(client)?;
-    let opts = g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
-    for c in &page.comments {
-        emit_value(out, c.clone(), &opts)?;
-    }
-    emit_line(
-        out,
-        &serde_json::json!({"summary": {"count": page.comments.len(), "total": page.total}}),
-    )
 }

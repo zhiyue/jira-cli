@@ -15,7 +15,13 @@ pub fn dispatch<W: Write>(
     cmd: &SprintCmd,
 ) -> Result<()> {
     match cmd {
-        SprintCmd::List { board, state } => {
+        SprintCmd::List {
+            board,
+            state,
+            max,
+            start_at,
+            page_size,
+        } => {
             let states: Vec<&str> = state
                 .as_deref()
                 .map(|s| {
@@ -25,17 +31,25 @@ pub fn dispatch<W: Write>(
                         .collect()
                 })
                 .unwrap_or_default();
-            let page = agile::list_sprints(client, *board, &states)?;
-            let fields = g.field_list();
+            let params = crate::api::paging::PageParams {
+                start_at: *start_at,
+                page_size: *page_size,
+                max: *max,
+            };
+            let mut iter = agile::list_sprints_paged(client, *board, &states, params);
             let renames = cfg.effective_renames(client)?;
+            let fields = g.field_list();
             let opts =
                 g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
-            for s in &page.values {
-                emit_value(out, s.clone(), &opts)?;
+            let mut count = 0u64;
+            for next in iter.by_ref() {
+                let s = next?;
+                emit_value(out, s, &opts)?;
+                count += 1;
             }
             emit_line(
                 out,
-                &serde_json::json!({"summary": {"count": page.values.len(), "total": page.total, "isLast": page.is_last}}),
+                &serde_json::json!({"summary": {"count": count, "total": iter.total()}}),
             )
         }
         SprintCmd::Get { id } => {
@@ -108,14 +122,31 @@ pub fn dispatch<W: Write>(
             writeln!(out, "{}", serde_json::json!({"ok": true, "deleted": id}))?;
             Ok(())
         }
-        SprintCmd::Issues { id } => {
-            let v = agile::sprint_issues(client, *id)?;
-            let fields = g.field_list();
+        SprintCmd::Issues {
+            id,
+            max,
+            start_at,
+            page_size,
+        } => {
+            let params = crate::api::paging::PageParams {
+                start_at: *start_at,
+                page_size: *page_size,
+                max: *max,
+            };
+            let mut iter = agile::sprint_issues_paged(client, *id, params);
             let renames = cfg.effective_renames(client)?;
-            emit_value(
+            let fields = g.field_list();
+            let opts =
+                g.output_options_with_renames(Format::Jsonl, fields.as_deref(), Some(&renames));
+            let mut count = 0u64;
+            for next in iter.by_ref() {
+                let issue = next?;
+                emit_value(out, issue, &opts)?;
+                count += 1;
+            }
+            emit_line(
                 out,
-                v,
-                &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
+                &serde_json::json!({"summary": {"count": count, "total": iter.total()}}),
             )
         }
         SprintCmd::Move { id, keys } => {

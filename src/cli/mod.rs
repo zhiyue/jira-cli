@@ -172,7 +172,18 @@ pub enum IssueCmd {
 #[derive(Subcommand, Debug)]
 pub enum CommentCmd {
     /// List comments on an issue
-    List { key: String },
+    List {
+        key: String,
+        /// Cap total results emitted (client-side)
+        #[arg(long)]
+        max: Option<u64>,
+        /// Start offset (default 0)
+        #[arg(long = "start-at", default_value_t = 0)]
+        start_at: u64,
+        /// Page size sent to Jira (default 50)
+        #[arg(long = "page-size", default_value_t = 50)]
+        page_size: u64,
+    },
     /// Add a comment to an issue
     Add {
         key: String,
@@ -318,6 +329,15 @@ pub enum LinkCmd {
 pub enum WorklogCmd {
     List {
         key: String,
+        /// Cap total results emitted (client-side)
+        #[arg(long)]
+        max: Option<u64>,
+        /// Start offset (default 0)
+        #[arg(long = "start-at", default_value_t = 0)]
+        start_at: u64,
+        /// Page size sent to Jira (default 50)
+        #[arg(long = "page-size", default_value_t = 50)]
+        page_size: u64,
     },
     Add {
         key: String,
@@ -380,8 +400,16 @@ pub enum ProjectCmd {
 
 #[derive(Subcommand, Debug)]
 pub enum UserCmd {
-    Get { username: String },
-    Search { query: String },
+    Get {
+        username: String,
+    },
+    Search {
+        query: String,
+        /// Server-side cap on results returned (note: Jira's /user/search has no
+        /// pagination metadata; this sets Jira's maxResults query param directly)
+        #[arg(long)]
+        max: Option<u64>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -392,12 +420,30 @@ pub enum BoardCmd {
         r#type: Option<String>,
         #[arg(long)]
         project: Option<String>,
+        /// Cap total results emitted (client-side)
+        #[arg(long)]
+        max: Option<u64>,
+        /// Start offset (default 0)
+        #[arg(long = "start-at", default_value_t = 0)]
+        start_at: u64,
+        /// Page size sent to Jira (default 50)
+        #[arg(long = "page-size", default_value_t = 50)]
+        page_size: u64,
     },
     Get {
         id: u64,
     },
     Backlog {
         id: u64,
+        /// Cap total results emitted (client-side)
+        #[arg(long)]
+        max: Option<u64>,
+        /// Start offset (default 0)
+        #[arg(long = "start-at", default_value_t = 0)]
+        start_at: u64,
+        /// Page size sent to Jira (default 50)
+        #[arg(long = "page-size", default_value_t = 50)]
+        page_size: u64,
     },
 }
 
@@ -442,6 +488,15 @@ pub enum SprintCmd {
         /// Comma-separated states: future, active, closed
         #[arg(long)]
         state: Option<String>,
+        /// Cap total results emitted (client-side)
+        #[arg(long)]
+        max: Option<u64>,
+        /// Start offset (default 0)
+        #[arg(long = "start-at", default_value_t = 0)]
+        start_at: u64,
+        /// Page size sent to Jira (default 50)
+        #[arg(long = "page-size", default_value_t = 50)]
+        page_size: u64,
     },
     Get {
         id: u64,
@@ -479,6 +534,15 @@ pub enum SprintCmd {
     },
     Issues {
         id: u64,
+        /// Cap total results emitted (client-side)
+        #[arg(long)]
+        max: Option<u64>,
+        /// Start offset (default 0)
+        #[arg(long = "start-at", default_value_t = 0)]
+        start_at: u64,
+        /// Page size sent to Jira (default 50)
+        #[arg(long = "page-size", default_value_t = 50)]
+        page_size: u64,
     },
     Move {
         id: u64,

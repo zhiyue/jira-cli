@@ -8,6 +8,7 @@ pub mod field;
 pub mod issue;
 pub mod link;
 pub mod meta;
+pub mod paging;
 pub mod project;
 pub mod search;
 pub mod session;

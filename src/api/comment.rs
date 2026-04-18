@@ -16,6 +16,23 @@ pub fn list(client: &HttpClient, key: &str) -> Result<CommentPage> {
     client.get_json(&path)
 }
 
+pub fn list_paged<'a>(
+    client: &'a HttpClient,
+    key: &str,
+    params: crate::api::paging::PageParams,
+) -> crate::api::paging::PagedIter<'a> {
+    let key = key.to_string();
+    crate::api::paging::PagedIter::new(client, params, "comments", move |client, start, size| {
+        let path = format!(
+            "/rest/api/2/issue/{}/comment?startAt={}&maxResults={}",
+            urlenc(&key),
+            start,
+            size
+        );
+        client.get_json(&path)
+    })
+}
+
 pub fn add(client: &HttpClient, key: &str, body: &str) -> Result<Value> {
     let path = format!("/rest/api/2/issue/{}/comment", urlenc(key));
     client.post_json(&path, &json!({ "body": body }))

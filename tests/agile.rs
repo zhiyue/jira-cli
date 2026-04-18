@@ -2,6 +2,7 @@ mod common;
 
 use common::{in_blocking, spawn_mock_basic};
 use jira_cli::api::agile;
+use jira_cli::api::paging::PageParams;
 use serde_json::json;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, ResponseTemplate};
@@ -134,6 +135,58 @@ async fn backlog_move() {
         .await;
     in_blocking(move || {
         agile::backlog_move(&client, &["MGX-1".into(), "MGX-2".into()]).unwrap();
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn list_boards_paginates_multiple_pages() {
+    let (server, client) = spawn_mock_basic().await;
+
+    // Page 1: 3 boards, total=5
+    let page1: Vec<_> = (1..=3)
+        .map(|i| json!({"id": i, "name": format!("Board {i}"), "type": "scrum"}))
+        .collect();
+    Mock::given(method("GET"))
+        .and(path("/rest/agile/1.0/board"))
+        .and(query_param("startAt", "0"))
+        .and(query_param("maxResults", "3"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "startAt": 0, "maxResults": 3, "total": 5, "isLast": false,
+            "values": page1
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let page2: Vec<_> = (4..=5)
+        .map(|i| json!({"id": i, "name": format!("Board {i}"), "type": "scrum"}))
+        .collect();
+    Mock::given(method("GET"))
+        .and(path("/rest/agile/1.0/board"))
+        .and(query_param("startAt", "3"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "startAt": 3, "maxResults": 3, "total": 5, "isLast": true,
+            "values": page2
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    in_blocking(move || {
+        let params = PageParams {
+            start_at: 0,
+            page_size: 3,
+            max: None,
+        };
+        let mut iter = agile::list_boards_paged(&client, None, None, params);
+        let mut count = 0;
+        for item in iter.by_ref() {
+            item.unwrap();
+            count += 1;
+        }
+        assert_eq!(count, 5);
+        assert_eq!(iter.total(), Some(5));
     })
     .await;
 }

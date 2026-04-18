@@ -25,8 +25,12 @@ pub fn dispatch<W: Write>(
                 &g.output_options_with_renames(Format::Json, fields.as_deref(), Some(&renames)),
             )
         }
-        UserCmd::Search { query } => {
-            let items = user::search(client, query)?;
+        UserCmd::Search { query, max } => {
+            let items = if let Some(m) = max {
+                user::search_with_max(client, query, *m)?
+            } else {
+                user::search(client, query)?
+            };
             let fields = g.field_list();
             let renames = cfg.effective_renames(client)?;
             let opts =
